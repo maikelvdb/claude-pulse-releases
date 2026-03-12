@@ -1,12 +1,15 @@
+// src/renderer/hooks/useClaudeStats.ts
 import { useState, useEffect } from 'react';
-import { ClaudeUsageState } from '../../shared/types';
+import { ClaudeUsageState, SnapEdge } from '../../shared/types';
 
 declare global {
   interface Window {
     claudePulse: {
       onUsageUpdate: (callback: (state: ClaudeUsageState) => void) => void;
       onVisibility: (callback: (visible: boolean) => void) => void;
+      onSnapEdge: (callback: (edge: SnapEdge) => void) => void;
       requestUpdate: () => void;
+      requestSnapEdge: () => void;
     };
   }
 }
@@ -19,15 +22,16 @@ const defaultState: ClaudeUsageState = {
   plan: { subscriptionType: 'unknown', rateLimitTier: 'unknown' },
 };
 
-export function useClaudeStats(): ClaudeUsageState {
+export function useClaudeStats() {
   const [state, setState] = useState<ClaudeUsageState>(defaultState);
+  const [snapEdge, setSnapEdge] = useState<SnapEdge>('top');
 
   useEffect(() => {
-    window.claudePulse.onUsageUpdate((newState) => {
-      setState(newState);
-    });
+    window.claudePulse.onUsageUpdate((newState) => setState(newState));
+    window.claudePulse.onSnapEdge((edge) => setSnapEdge(edge));
     window.claudePulse.requestUpdate();
+    window.claudePulse.requestSnapEdge();
   }, []);
 
-  return state;
+  return { state, snapEdge };
 }
