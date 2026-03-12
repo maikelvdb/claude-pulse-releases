@@ -16,7 +16,7 @@ function getTranslateClass(edge: SnapEdge, visible: boolean): string {
 }
 
 export default function App() {
-  const { state, snapEdge } = useClaudeStats();
+  const { state, snapEdge, activityHistory, isExpanded, toggleExpanded } = useClaudeStats();
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
@@ -27,7 +27,13 @@ export default function App() {
 
   return (
     <div className={`w-full h-full transition-all duration-300 ease-in-out ${translateClass}`}>
-      <StatusBar state={state} snapEdge={snapEdge} />
+      <StatusBar
+        state={state}
+        snapEdge={snapEdge}
+        activityHistory={activityHistory}
+        isExpanded={isExpanded}
+        onToggleExpanded={toggleExpanded}
+      />
     </div>
   );
 }
