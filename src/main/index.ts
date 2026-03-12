@@ -1,14 +1,17 @@
+// src/main/index.ts
 import { app, screen } from 'electron';
-import { createWindow, showWidget, scheduleHide, getWindow } from './window-manager';
+import { createWindow, showWidget, scheduleHide, getWindow, getSnapEdge, setOnEdgeChange } from './window-manager';
 import { setupIpcHandlers } from './ipc-handlers';
 import { getActiveSession } from './services/session-watcher';
-import { POLL_INTERVAL_SESSION, WINDOW_WIDTH } from '../shared/constants';
+import { loadConfig, saveConfig } from './services/config-store';
+import { POLL_INTERVAL_SESSION, WINDOW_WIDTH_H, WINDOW_HEIGHT_V } from '../shared/constants';
 import path from 'path';
 
 const isDev = !app.isPackaged;
 
 app.whenReady().then(() => {
-  const win = createWindow();
+  const config = loadConfig();
+  const win = createWindow(config.snapEdge);
 
   if (isDev) {
     win.loadURL('http://localhost:3000');
@@ -17,6 +20,11 @@ app.whenReady().then(() => {
   }
 
   setupIpcHandlers(win);
+
+  // Persist edge changes
+  setOnEdgeChange((edge) => {
+    saveConfig({ snapEdge: edge });
+  });
 
   // Monitor for active sessions to auto-show
   setInterval(() => {
@@ -28,16 +36,31 @@ app.whenReady().then(() => {
     }
   }, POLL_INTERVAL_SESSION);
 
-  // Mouse proximity detection via polling screen cursor
+  // Mouse proximity detection — adapts to current snap edge
   setInterval(() => {
     const point = screen.getCursorScreenPoint();
     const display = screen.getPrimaryDisplay();
-    const centerX = display.workAreaSize.width / 2;
-    const inZone = point.y <= 10 &&
-      Math.abs(point.x - centerX) <= WINDOW_WIDTH / 2 + 50;
+    const { width: sw, height: sh } = display.workAreaSize;
+    const edge = getSnapEdge();
+    const margin = 10;
 
-    const currentWin = getWindow();
-    if (inZone && currentWin) {
+    let inZone = false;
+    switch (edge) {
+      case 'top':
+        inZone = point.y <= margin && Math.abs(point.x - sw / 2) <= WINDOW_WIDTH_H / 2 + 50;
+        break;
+      case 'bottom':
+        inZone = point.y >= sh - margin && Math.abs(point.x - sw / 2) <= WINDOW_WIDTH_H / 2 + 50;
+        break;
+      case 'left':
+        inZone = point.x <= margin && Math.abs(point.y - sh / 2) <= WINDOW_HEIGHT_V / 2 + 50;
+        break;
+      case 'right':
+        inZone = point.x >= sw - margin && Math.abs(point.y - sh / 2) <= WINDOW_HEIGHT_V / 2 + 50;
+        break;
+    }
+
+    if (inZone && getWindow()) {
       showWidget();
     }
   }, 200);
