@@ -35,3 +35,9 @@ export interface IpcChannels {
   'claude:usage-update': ClaudeUsageState;
   'claude:request-update': void;
 }
+
+export type SnapEdge = 'top' | 'bottom' | 'left' | 'right';
+
+export interface PulseConfig {
+  snapEdge: SnapEdge;
+}
