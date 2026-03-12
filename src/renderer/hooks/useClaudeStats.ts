@@ -5,10 +5,10 @@ import { ClaudeUsageState, SnapEdge, ActivitySnapshot } from '../../shared/types
 declare global {
   interface Window {
     claudePulse: {
-      onUsageUpdate: (callback: (state: ClaudeUsageState) => void) => void;
-      onActivityHistory: (callback: (history: ActivitySnapshot[]) => void) => void;
-      onVisibility: (callback: (visible: boolean) => void) => void;
-      onSnapEdge: (callback: (edge: SnapEdge) => void) => void;
+      onUsageUpdate: (callback: (state: ClaudeUsageState) => void) => () => void;
+      onActivityHistory: (callback: (history: ActivitySnapshot[]) => void) => () => void;
+      onVisibility: (callback: (visible: boolean) => void) => () => void;
+      onSnapEdge: (callback: (edge: SnapEdge) => void) => () => void;
       requestUpdate: () => void;
       requestSnapEdge: () => void;
       requestResize: (expanded: boolean) => void;
@@ -31,18 +31,23 @@ export function useClaudeStats() {
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
-    window.claudePulse.onUsageUpdate((newState) => setState(newState));
-    window.claudePulse.onActivityHistory((history) => setActivityHistory(history));
-    window.claudePulse.onSnapEdge((edge) => setSnapEdge(edge));
+    const cleanups = [
+      window.claudePulse.onUsageUpdate((newState) => setState(newState)),
+      window.claudePulse.onActivityHistory((history) => setActivityHistory(history)),
+      window.claudePulse.onSnapEdge((edge) => setSnapEdge(edge)),
+    ];
     window.claudePulse.requestUpdate();
     window.claudePulse.requestSnapEdge();
+    return () => cleanups.forEach(cleanup => cleanup());
   }, []);
 
   const toggleExpanded = useCallback(() => {
-    const next = !isExpanded;
-    setIsExpanded(next);
-    window.claudePulse.requestResize(next);
-  }, [isExpanded]);
+    setIsExpanded(prev => {
+      const next = !prev;
+      window.claudePulse.requestResize(next);
+      return next;
+    });
+  }, []);
 
   return { state, snapEdge, activityHistory, isExpanded, toggleExpanded };
 }

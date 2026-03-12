@@ -35,6 +35,11 @@ export interface ClaudeUsageState {
 export interface IpcChannels {
   'claude:usage-update': ClaudeUsageState;
   'claude:request-update': void;
+  'claude:activity-history': ActivitySnapshot[];
+  'widget:resize': boolean;
+  'widget:visibility': boolean;
+  'widget:snap-edge': SnapEdge;
+  'widget:request-snap-edge': void;
 }
 
 export type SnapEdge = 'top' | 'bottom' | 'left' | 'right';

@@ -12,7 +12,14 @@ export function loadActivityHistory(): void {
     if (fs.existsSync(ACTIVITY_FILE)) {
       const data = JSON.parse(fs.readFileSync(ACTIVITY_FILE, 'utf-8'));
       if (Array.isArray(data)) {
-        snapshots = data;
+        snapshots = data.filter(
+          (s: unknown): s is ActivitySnapshot =>
+            typeof s === 'object' && s !== null &&
+            typeof (s as ActivitySnapshot).t === 'number' &&
+            typeof (s as ActivitySnapshot).input === 'number' &&
+            typeof (s as ActivitySnapshot).output === 'number' &&
+            typeof (s as ActivitySnapshot).active === 'boolean'
+        );
         prune();
       }
     }
@@ -42,16 +49,12 @@ export function recordSnapshot(input: number, output: number, active: boolean): 
 }
 
 function persistToDisk(): void {
-  try {
-    fs.writeFileSync(ACTIVITY_FILE, JSON.stringify(snapshots));
-    lastWriteTime = Date.now();
-  } catch {
-    // Ignore write errors
-  }
+  lastWriteTime = Date.now();
+  fs.writeFile(ACTIVITY_FILE, JSON.stringify(snapshots), () => {});
 }
 
 export function getActivityHistory(): ActivitySnapshot[] {
-  return snapshots;
+  return [...snapshots];
 }
 
 export function flushActivityHistory(): void {

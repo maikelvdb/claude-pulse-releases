@@ -20,7 +20,8 @@ export default function App() {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    window.claudePulse.onVisibility?.((v: boolean) => setVisible(v));
+    const cleanup = window.claudePulse.onVisibility((v: boolean) => setVisible(v));
+    return cleanup;
   }, []);
 
   const translateClass = getTranslateClass(snapEdge, visible);
