@@ -1,9 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { ClaudeUsageState, SnapEdge } from '../shared/types';
+import { ClaudeUsageState, SnapEdge, ActivitySnapshot } from '../shared/types';
 
 contextBridge.exposeInMainWorld('claudePulse', {
   onUsageUpdate: (callback: (state: ClaudeUsageState) => void) => {
     ipcRenderer.on('claude:usage-update', (_event, state) => callback(state));
+  },
+  onActivityHistory: (callback: (history: ActivitySnapshot[]) => void) => {
+    ipcRenderer.on('claude:activity-history', (_event, history) => callback(history));
   },
   onVisibility: (callback: (visible: boolean) => void) => {
     ipcRenderer.on('widget:visibility', (_event, visible) => callback(visible));
@@ -16,5 +19,8 @@ contextBridge.exposeInMainWorld('claudePulse', {
   },
   requestSnapEdge: () => {
     ipcRenderer.send('widget:request-snap-edge');
+  },
+  requestResize: (expanded: boolean) => {
+    ipcRenderer.send('widget:resize', expanded);
   },
 });

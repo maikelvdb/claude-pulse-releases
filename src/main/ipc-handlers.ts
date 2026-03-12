@@ -3,9 +3,10 @@ import { getActiveSession } from './services/session-watcher';
 import { getTodayTokenUsage } from './services/stats-reader';
 import { getPlanInfo } from './services/credentials-reader';
 import { getCurrentModel, getUsageLimits } from './services/session-parser';
+import { recordSnapshot, getActivityHistory } from './services/activity-store';
 import { ClaudeUsageState } from '../shared/types';
 import { POLL_INTERVAL_SESSION, POLL_INTERVAL_STATS } from '../shared/constants';
-import { getSnapEdge } from './window-manager';
+import { getSnapEdge, resizeForExpand } from './window-manager';
 
 let cachedState: ClaudeUsageState | null = null;
 
@@ -28,10 +29,15 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.on('claude:request-update', () => {
     cachedState = buildState();
     mainWindow.webContents.send('claude:usage-update', cachedState);
+    mainWindow.webContents.send('claude:activity-history', getActivityHistory());
   });
 
   ipcMain.on('widget:request-snap-edge', () => {
     mainWindow.webContents.send('widget:snap-edge', getSnapEdge());
+  });
+
+  ipcMain.on('widget:resize', (_event, expanded: boolean) => {
+    resizeForExpand(expanded);
   });
 
   // Fast poll for session changes (2s)
@@ -49,9 +55,18 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
   setInterval(() => {
     cachedState = buildState();
     mainWindow.webContents.send('claude:usage-update', cachedState);
+
+    // Record activity snapshot
+    recordSnapshot(
+      cachedState.tokens.inputToday,
+      cachedState.tokens.outputToday,
+      cachedState.session.isActive
+    );
+    mainWindow.webContents.send('claude:activity-history', getActivityHistory());
   }, POLL_INTERVAL_STATS);
 
   // Initial push
   cachedState = buildState();
   mainWindow.webContents.send('claude:usage-update', cachedState);
+  mainWindow.webContents.send('claude:activity-history', getActivityHistory());
 }

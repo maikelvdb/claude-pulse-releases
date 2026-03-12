@@ -4,6 +4,7 @@ import { createWindow, showWidget, scheduleHide, getWindow, getSnapEdge, setOnEd
 import { setupIpcHandlers } from './ipc-handlers';
 import { getActiveSession } from './services/session-watcher';
 import { loadConfig, saveConfig } from './services/config-store';
+import { loadActivityHistory, flushActivityHistory } from './services/activity-store';
 import { POLL_INTERVAL_SESSION, WINDOW_WIDTH_H, WINDOW_HEIGHT_V } from '../shared/constants';
 import path from 'path';
 
@@ -11,6 +12,7 @@ const isDev = !app.isPackaged;
 
 app.whenReady().then(() => {
   const config = loadConfig();
+  loadActivityHistory();
   const win = createWindow(config.snapEdge);
 
   if (isDev) {
@@ -64,6 +66,10 @@ app.whenReady().then(() => {
       showWidget();
     }
   }, 200);
+});
+
+app.on('before-quit', () => {
+  flushActivityHistory();
 });
 
 app.on('window-all-closed', () => {
