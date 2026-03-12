@@ -12,6 +12,7 @@ module.exports = {
         'claude-idle': '#6b7280',
         'claude-bar-bg': '#2a2a3e',
         'claude-border': '#333346',
+        'claude-input': '#60a5fa',
       },
     },
   },
