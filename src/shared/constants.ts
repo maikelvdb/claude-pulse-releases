@@ -1,0 +1,18 @@
+import path from 'path';
+import os from 'os';
+
+export const CLAUDE_DIR = path.join(os.homedir(), '.claude');
+export const IDE_LOCK_DIR = path.join(CLAUDE_DIR, 'ide');
+export const STATS_CACHE_FILE = path.join(CLAUDE_DIR, 'stats-cache.json');
+export const CREDENTIALS_FILE = path.join(CLAUDE_DIR, '.credentials.json');
+export const PROJECTS_DIR = path.join(CLAUDE_DIR, 'projects');
+
+export const POLL_INTERVAL_SESSION = 2000;   // 2s
+export const POLL_INTERVAL_STATS = 10000;    // 10s
+export const POLL_INTERVAL_JSONL = 30000;    // 30s
+
+export const AUTO_HIDE_DELAY = 3000;         // 3s
+export const ANIMATION_DURATION = 300;       // 300ms
+
+export const WINDOW_WIDTH = 420;
+export const WINDOW_HEIGHT = 68;
