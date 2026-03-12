@@ -25,3 +25,7 @@ export const WINDOW_HEIGHT_H = 60;
 // Vertical dimensions (left/right)
 export const WINDOW_WIDTH_V = 80;
 export const WINDOW_HEIGHT_V = 320;
+
+// Expanded dimensions (graph visible)
+export const WINDOW_HEIGHT_H_EXPANDED = 200;
+export const WINDOW_WIDTH_V_EXPANDED = 260;
