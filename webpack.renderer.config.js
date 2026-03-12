@@ -1,13 +1,8 @@
-import path from 'path';
-import HtmlWebpackPlugin from 'html-webpack-plugin';
-import type { Configuration } from 'webpack';
-import type { Configuration as DevServerConfiguration } from 'webpack-dev-server';
+const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-interface WebpackConfig extends Configuration {
-  devServer?: DevServerConfiguration;
-}
-
-const config: WebpackConfig = {
+/** @type {import('webpack').Configuration & { devServer?: import('webpack-dev-server').Configuration }} */
+module.exports = {
   mode: 'development',
   target: 'web',
   entry: './src/renderer/index.tsx',
@@ -49,5 +44,3 @@ const config: WebpackConfig = {
     },
   },
 };
-
-export default config;
