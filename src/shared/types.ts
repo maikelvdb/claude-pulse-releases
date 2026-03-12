@@ -3,6 +3,7 @@ export interface SessionInfo {
   pid: number | null;
   workspace: string | null;
   ideName: string | null;
+  source: 'ide' | 'cli' | null;
 }
 
 export interface TokenUsage {

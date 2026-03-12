@@ -3,6 +3,8 @@ import os from 'os';
 
 export const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 export const IDE_LOCK_DIR = path.join(CLAUDE_DIR, 'ide');
+export const STATS_CACHE_ACTIVE_THRESHOLD = 30000; // 30s — if stats-cache.json modified within this, CLI is active
+export const ACTIVITY_FILE = path.join(CLAUDE_DIR, 'claude-pulse-activity.json');
 export const STATS_CACHE_FILE = path.join(CLAUDE_DIR, 'stats-cache.json');
 export const CREDENTIALS_FILE = path.join(CLAUDE_DIR, '.credentials.json');
 export const PROJECTS_DIR = path.join(CLAUDE_DIR, 'projects');
