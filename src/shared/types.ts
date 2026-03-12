@@ -42,3 +42,10 @@ export type SnapEdge = 'top' | 'bottom' | 'left' | 'right';
 export interface PulseConfig {
   snapEdge: SnapEdge;
 }
+
+export interface ActivitySnapshot {
+  t: number;        // timestamp (ms)
+  input: number;    // cumulative input tokens today
+  output: number;   // cumulative output tokens today
+  active: boolean;  // session active at this moment
+}
