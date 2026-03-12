@@ -1,0 +1,13 @@
+appId: com.claudepulse.app
+productName: Claude Pulse
+directories:
+  output: release
+files:
+  - dist/**/*
+  - package.json
+win:
+  target: nsis
+mac:
+  target: dmg
+linux:
+  target: AppImage
