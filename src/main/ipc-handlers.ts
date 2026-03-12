@@ -5,6 +5,7 @@ import { getPlanInfo } from './services/credentials-reader';
 import { getCurrentModel, getUsageLimits } from './services/session-parser';
 import { ClaudeUsageState } from '../shared/types';
 import { POLL_INTERVAL_SESSION, POLL_INTERVAL_STATS } from '../shared/constants';
+import { getSnapEdge } from './window-manager';
 
 let cachedState: ClaudeUsageState | null = null;
 
@@ -27,6 +28,10 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.on('claude:request-update', () => {
     cachedState = buildState();
     mainWindow.webContents.send('claude:usage-update', cachedState);
+  });
+
+  ipcMain.on('widget:request-snap-edge', () => {
+    mainWindow.webContents.send('widget:snap-edge', getSnapEdge());
   });
 
   // Fast poll for session changes (2s)
