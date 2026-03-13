@@ -35,7 +35,8 @@ body {
   flex-shrink: 0;
   position: relative;
 }
-.header h1 { color: #E87443; font-size: 18px; margin-bottom: 2px; }
+.header h1 { color: #E87443; font-size: 18px; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
+.header .version-badge { font-size: 10px; color: #888; background: #2a2a3e; border: 1px solid #444; border-radius: 10px; padding: 1px 8px; font-weight: normal; }
 .header .subtitle { color: #888; font-size: 12px; }
 .close-btn {
   -webkit-app-region: no-drag;
@@ -166,7 +167,7 @@ kbd {
 <body>
 
 <div class="header">
-  <h1>Claude Pulse</h1>
+  <h1>Claude Pulse <span class="version-badge" id="header-version"></span></h1>
   <p class="subtitle">Real-time Claude Code usage monitor</p>
   <button class="close-btn" onclick="window.close()">&times;</button>
 </div>
@@ -271,6 +272,7 @@ kbd {
   // Update info
   window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'update-info') {
+      document.getElementById('header-version').textContent = 'v' + e.data.currentVersion;
       document.getElementById('current-version').textContent = 'Current version: v' + e.data.currentVersion;
 
       if (e.data.releaseNotes) {
