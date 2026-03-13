@@ -79,7 +79,7 @@
       var dlUrl = exe ? exe.browser_download_url : latest.html_url;
       var size = exe ? (exe.size / 1024 / 1024).toFixed(1) + ' MB' : '';
       document.getElementById('latest-download').innerHTML =
-        '<div class="download-card"><div class="info"><h3>Latest: ' + latest.tag_name + ' <span class="badge">NEW</span></h3><p>Windows installer' + (size ? ' &middot; ' + size : '') + '</p></div><a class="btn" href="' + dlUrl + '">Download</a></div>';
+        '<div class="download-card"><div class="info"><h3>Latest: ' + latest.tag_name + ' <span class="badge">NEW</span></h3><p>Windows installer' + (size ? ' &middot; ' + size : '') + ' &middot; ' + new Date(latest.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + '</p></div><a class="btn" href="' + dlUrl + '">Download</a></div>';
       var html = '';
       releases.forEach(function(r) {
         var exe = r.assets.find(function(a) { return a.name.endsWith('.exe'); });
