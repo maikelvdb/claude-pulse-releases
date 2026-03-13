@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Claude Pulse — Download</title>
+<style>
+  :root { --orange: #E87443; --bg: #1a1a2e; --bg2: #222240; --border: #333346; --text: #c8c8d8; --dim: #888; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+  .container { max-width: 640px; width: 100%; padding: 60px 24px; }
+  .logo { text-align: center; margin-bottom: 32px; }
+  .logo img { width: 80px; height: 80px; border-radius: 16px; }
+  h1 { text-align: center; color: var(--orange); font-size: 28px; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: var(--dim); font-size: 14px; margin-bottom: 40px; }
+  .download-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+  .download-card .info h3 { font-size: 16px; color: var(--text); margin-bottom: 4px; }
+  .download-card .info p { font-size: 12px; color: var(--dim); }
+  .download-card .badge { display: inline-block; background: var(--orange); color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+  .btn { display: inline-block; background: var(--orange); color: #fff; text-decoration: none; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; transition: opacity 0.2s; }
+  .btn:hover { opacity: 0.85; }
+  .features { margin-top: 48px; }
+  .features h2 { font-size: 18px; color: var(--text); margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .features ul { list-style: none; }
+  .features li { padding: 6px 0; font-size: 13px; color: var(--dim); }
+  .features li::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); margin-right: 10px; vertical-align: middle; }
+  .releases { margin-top: 40px; }
+  .releases h2 { font-size: 18px; color: var(--text); margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .release-entry { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .release-entry h3 { font-size: 14px; color: var(--orange); margin-bottom: 4px; }
+  .release-entry .date { font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+  .release-entry .notes { font-size: 12px; color: var(--dim); line-height: 1.6; white-space: pre-wrap; }
+  .release-entry .dl-link { font-size: 12px; color: var(--orange); text-decoration: none; margin-top: 8px; display: inline-block; }
+  .release-entry .dl-link:hover { text-decoration: underline; }
+  footer { margin-top: 48px; text-align: center; color: var(--dim); font-size: 11px; padding-bottom: 24px; }
+  footer a { color: var(--orange); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo"><img src="icon-256.png" alt="Claude Pulse" /></div>
+  <h1>Claude Pulse</h1>
+  <p class="subtitle">Real-time Claude Code usage monitor for your desktop</p>
+  <div id="latest-download"></div>
+  <div class="features">
+    <h2>Features</h2>
+    <ul>
+      <li>Live session status and model indicator</li>
+      <li>Token usage counter (input / output / cache)</li>
+      <li>5-minute activity sparkline chart</li>
+      <li>Expandable 1-hour detailed activity graph</li>
+      <li>Hourly and weekly rate limit bars</li>
+      <li>Animated Clawd mascot</li>
+      <li>Edge snapping with drag-to-slide</li>
+      <li>Auto show/hide based on session activity</li>
+      <li>Automatic update notifications</li>
+    </ul>
+  </div>
+  <div class="releases">
+    <h2>All Releases</h2>
+    <div id="releases-list"><p style="color:#666">Loading releases...</p></div>
+  </div>
+  <footer>Built for <a href="https://docs.anthropic.com/en/docs/claude-code" target="_blank">Claude Code</a></footer>
+</div>
+<script>
+  var REPO = 'maikelvdb/claude-pulse-releases';
+  fetch('https://api.github.com/repos/' + REPO + '/releases')
+    .then(function(r) { return r.json(); })
+    .then(function(releases) {
+      if (!releases.length) { document.getElementById('releases-list').innerHTML = '<p style="color:#666">No releases yet.</p>'; return; }
+      var latest = releases[0];
+      var exe = latest.assets.find(function(a) { return a.name.endsWith('.exe'); });
+      var dlUrl = exe ? exe.browser_download_url : latest.html_url;
+      var size = exe ? (exe.size / 1024 / 1024).toFixed(1) + ' MB' : '';
+      document.getElementById('latest-download').innerHTML =
+        '<div class="download-card"><div class="info"><h3>Latest: ' + latest.tag_name + ' <span class="badge">NEW</span></h3><p>Windows installer' + (size ? ' &middot; ' + size : '') + '</p></div><a class="btn" href="' + dlUrl + '">Download</a></div>';
+      var html = '';
+      releases.forEach(function(r) {
+        var exe = r.assets.find(function(a) { return a.name.endsWith('.exe'); });
+        var dlLink = exe ? '<a class="dl-link" href="' + exe.browser_download_url + '">Download ' + r.tag_name + '</a>' : '';
+        html += '<div class="release-entry"><h3>' + r.tag_name + '</h3><div class="date">' + new Date(r.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + '</div><div class="notes">' + (r.body || 'No release notes.') + '</div>' + dlLink + '</div>';
+      });
+      document.getElementById('releases-list').innerHTML = html;
+    })
+    .catch(function() { document.getElementById('releases-list').innerHTML = '<p style="color:#666">Could not load releases.</p>'; });
+</script>
+</body>
+</html>
