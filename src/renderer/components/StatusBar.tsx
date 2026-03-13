@@ -143,11 +143,6 @@ export function StatusBar({
             />
             <div className="h-px w-8 bg-claude-border" />
             <TokenCounter tokens={state.tokens} orientation="vertical" />
-            {state.session.sessionCount > 0 && (
-              <span className="text-[8px] text-claude-text-dim font-mono">
-                {state.session.sessionCount} sess.
-              </span>
-            )}
             <SessionTimer sessionStartedAt={state.sessionStartedAt} orientation="vertical" />
             <div className="h-px w-8 bg-claude-border" />
             <ActivitySparkline
@@ -210,13 +205,8 @@ export function StatusBar({
         <div className="w-px h-8 bg-claude-border" />
         <div className="flex flex-col items-start">
           <TokenCounter tokens={state.tokens} orientation="horizontal" />
-          {state.session.sessionCount > 0 && (
-            <span className="text-[10px] text-claude-text-dim font-mono ml-4">
-              {state.session.sessionCount} session{state.session.sessionCount !== 1 ? 's' : ''}
-            </span>
-          )}
+          <SessionTimer sessionStartedAt={state.sessionStartedAt} orientation="horizontal" />
         </div>
-        <SessionTimer sessionStartedAt={state.sessionStartedAt} orientation="horizontal" />
         <div className="w-px h-8 bg-claude-border" />
         <ActivitySparkline
           history={activityHistory}
