@@ -4,7 +4,7 @@ import { SnapEdge, PulseConfig, ThemeName } from '../../shared/types';
 
 const VALID_EDGES: SnapEdge[] = ['top', 'bottom', 'left', 'right'];
 const VALID_THEMES: ThemeName[] = ['dark', 'light', 'sunset'];
-const DEFAULT_CONFIG: PulseConfig = { snapEdge: 'top', userOffset: null, theme: 'dark', opacity: 1, positionLocked: false, autoStart: false };
+const DEFAULT_CONFIG: PulseConfig = { snapEdge: 'top', userOffset: null, theme: 'dark', opacity: 1, positionLocked: false, autoStart: false, soundMuted: false };
 
 let currentConfig: PulseConfig = { ...DEFAULT_CONFIG };
 
@@ -22,6 +22,7 @@ export function loadConfig(): PulseConfig {
       opacity: typeof data.opacity === 'number' ? Math.max(0.2, Math.min(1, data.opacity)) : 1,
       positionLocked: !!data.positionLocked,
       autoStart: !!data.autoStart,
+      soundMuted: !!data.soundMuted,
     };
     return currentConfig;
   } catch {

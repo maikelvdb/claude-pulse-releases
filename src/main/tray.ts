@@ -2,6 +2,7 @@ import { Tray, Menu, app, nativeImage } from 'electron';
 import path from 'path';
 import { getWindow, showWidget, hideWidget } from './window-manager';
 import { openHelpWindow } from './ipc-handlers';
+import { getConfig, saveConfig } from './services/config-store';
 
 let tray: Tray | null = null;
 
@@ -46,6 +47,15 @@ export function createTray(): void {
     {
       label: 'Help',
       click: () => openHelpWindow(),
+    },
+    {
+      label: 'Mute Sounds',
+      type: 'checkbox',
+      checked: !!getConfig().soundMuted,
+      click: (menuItem) => {
+        saveConfig({ soundMuted: menuItem.checked });
+        getWindow()?.webContents.send('widget:sound-muted', menuItem.checked);
+      },
     },
     { type: 'separator' },
     {

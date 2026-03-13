@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('claudePulse', {
   },
   onConversationPreview: makeListener<string>('claude:conversation-preview'),
   onDailyRollups: makeListener<DailyRollups>('claude:daily-rollups'),
+  onSoundMuted: makeListener<boolean>('widget:sound-muted'),
   onThemeChange: makeListener<ThemeName>('widget:theme-change'),
   setTheme: (theme: ThemeName) => {
     ipcRenderer.send('widget:set-theme', theme);

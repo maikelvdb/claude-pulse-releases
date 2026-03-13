@@ -327,6 +327,13 @@ input[type="range"]::-webkit-slider-thumb {
         </div>
         <div class="toggle" id="autostart-toggle"><div class="toggle-knob"></div></div>
       </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Mute sounds</div>
+          <div class="settings-sublabel">Disable all sound effects</div>
+        </div>
+        <div class="toggle" id="mute-toggle"><div class="toggle-knob"></div></div>
+      </div>
     </div>
   </div>
 
@@ -456,6 +463,11 @@ input[type="range"]::-webkit-slider-thumb {
     document.title = 'autostart:' + (this.classList.contains('on') ? '1' : '0');
   });
 
+  document.getElementById('mute-toggle').addEventListener('click', function() {
+    this.classList.toggle('on');
+    document.title = 'soundmute:' + (this.classList.contains('on') ? '1' : '0');
+  });
+
   // Update info
   window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'update-info') {
@@ -500,6 +512,7 @@ input[type="range"]::-webkit-slider-thumb {
       document.getElementById('opacity-value').textContent = Math.round(e.data.opacity * 100) + '%';
       if (e.data.positionLocked) document.getElementById('lock-toggle').classList.add('on');
       if (e.data.autoStart) document.getElementById('autostart-toggle').classList.add('on');
+      if (e.data.soundMuted) document.getElementById('mute-toggle').classList.add('on');
     }
     if (e.data && e.data.type === 'update-progress') {
       document.getElementById('progress-fill').style.width = e.data.percent + '%';
@@ -597,6 +610,7 @@ export function openHelpWindow(): void {
       opacity: config.opacity ?? 1,
       positionLocked: !!config.positionLocked,
       autoStart: !!config.autoStart,
+      soundMuted: !!config.soundMuted,
     };
     helpWindow.webContents.executeJavaScript(`
       document.querySelector('.theme-btn[data-theme="${config.theme || 'dark'}"]')?.classList.add('active');
@@ -660,6 +674,15 @@ export function openHelpWindow(): void {
       if (app.isPackaged) {
         app.setLoginItemSettings({ openAtLogin: enabled });
       }
+    } else if (title.startsWith('soundmute:')) {
+      const muted = title.slice(10) === '1';
+      saveConfig({ soundMuted: muted });
+      const allWindows = BrowserWindow.getAllWindows();
+      allWindows.forEach((w: Electron.BrowserWindow) => {
+        if (w !== helpWindow) {
+          w.webContents.send('widget:sound-muted', muted);
+        }
+      });
     }
   });
 
