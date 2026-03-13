@@ -161,11 +161,13 @@ export function StatusBar({
                 label="5h"
                 ratio={state.limits.hourlyUsed}
                 orientation="vertical"
+                tooltip={`${Math.round(state.limits.hourlyUsed * 100)}% used${state.cliStatus?.sessionResetTime ? ` · Resets ${state.cliStatus.sessionResetTime}` : ''}`}
               />
               <LimitBar
                 label="W"
                 ratio={state.limits.weeklyUsed}
                 orientation="vertical"
+                tooltip={`${Math.round(state.limits.weeklyUsed * 100)}% used${state.cliStatus?.weeklyResetTime ? ` · Resets ${state.cliStatus.weeklyResetTime}` : ''}`}
               />
             </div>
             {conversationPreview && state.session.isActive && (
@@ -227,11 +229,13 @@ export function StatusBar({
             label="5h"
             ratio={state.limits.hourlyUsed}
             orientation="horizontal"
+            tooltip={`${Math.round(state.limits.hourlyUsed * 100)}% used${state.cliStatus?.sessionResetTime ? ` · Resets ${state.cliStatus.sessionResetTime}` : ''}`}
           />
           <LimitBar
             label="Week"
             ratio={state.limits.weeklyUsed}
             orientation="horizontal"
+            tooltip={`${Math.round(state.limits.weeklyUsed * 100)}% used${state.cliStatus?.weeklyResetTime ? ` · Resets ${state.cliStatus.weeklyResetTime}` : ''}`}
           />
         </div>
         <div className="w-px h-8 bg-claude-border" />
