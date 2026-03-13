@@ -753,6 +753,8 @@ function buildState(): ClaudeUsageState {
   const currentModel = getCurrentModel();
   const limits = getUsageLimits(
     plan.rateLimitTier,
+    tokens.inputLastHour,
+    tokens.outputLastHour,
     tokens.inputToday,
     tokens.outputToday
   );

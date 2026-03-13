@@ -2,11 +2,13 @@ import fs from 'fs';
 import { UsageLimits } from '../../shared/types';
 import { findLatestJsonlFile } from './session-file';
 
-// Default hourly/weekly token estimates per tier
-const TIER_LIMITS: Record<string, { hourly: number; weekly: number }> = {
-  'default_claude_max_5x': { hourly: 500_000, weekly: 15_000_000 },
-  'default_claude_pro': { hourly: 200_000, weekly: 5_000_000 },
-  default: { hourly: 300_000, weekly: 10_000_000 },
+// Estimated 5-hour session / 7-day token limits per tier
+// These are approximations — exact limits are server-side and include all products
+const TIER_LIMITS: Record<string, { session: number; weekly: number }> = {
+  'default_claude_max_5x': { session: 1_500_000, weekly: 45_000_000 },
+  'default_claude_max_20x': { session: 6_000_000, weekly: 180_000_000 },
+  'default_claude_pro': { session: 300_000, weekly: 9_000_000 },
+  default: { session: 500_000, weekly: 15_000_000 },
 };
 
 export function getCurrentModel(): string | null {
@@ -50,17 +52,23 @@ function formatModelName(modelId: string): string {
 
 export function getUsageLimits(
   rateLimitTier: string,
-  inputTokens: number,
-  outputTokens: number
+  inputLastSession: number,
+  outputLastSession: number,
+  inputToday: number,
+  outputToday: number
 ): UsageLimits {
   const tierLimits = TIER_LIMITS[rateLimitTier] ?? TIER_LIMITS.default;
-  const totalTokens = inputTokens + outputTokens;
 
-  // These are rough estimates — exact limits are server-side
+  // Session: 5-hour sliding window (matches claude.ai "Current session")
+  const sessionTokens = inputLastSession + outputLastSession;
+
+  // Weekly: use today's total as approximation (we don't have full week data)
+  const dailyTokens = inputToday + outputToday;
+
   return {
-    hourlyUsed: Math.min(totalTokens / tierLimits.hourly, 1),
-    hourlyEstimate: tierLimits.hourly,
-    weeklyUsed: Math.min(totalTokens / tierLimits.weekly, 1),
+    hourlyUsed: Math.min(sessionTokens / tierLimits.session, 1),
+    hourlyEstimate: tierLimits.session,
+    weeklyUsed: Math.min(dailyTokens / tierLimits.weekly, 1),
     weeklyEstimate: tierLimits.weekly,
   };
 }

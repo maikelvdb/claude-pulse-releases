@@ -158,7 +158,7 @@ export function StatusBar({
             <div className="h-px w-8 bg-claude-border" />
             <div className="flex gap-2">
               <LimitBar
-                label="H"
+                label="S"
                 ratio={state.limits.hourlyUsed}
                 orientation="vertical"
               />
@@ -224,7 +224,7 @@ export function StatusBar({
         <div className="w-px h-8 bg-claude-border" />
         <div className="flex flex-col gap-1 flex-1">
           <LimitBar
-            label="Hour"
+            label="Sess"
             ratio={state.limits.hourlyUsed}
             orientation="horizontal"
           />

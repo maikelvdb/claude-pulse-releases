@@ -11,6 +11,8 @@ export interface TokenUsage {
   inputToday: number;
   outputToday: number;
   cacheReadToday: number;
+  inputLastHour: number;
+  outputLastHour: number;
 }
 
 export interface UsageLimits {

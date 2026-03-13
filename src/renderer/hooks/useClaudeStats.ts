@@ -37,7 +37,7 @@ const defaultState: ClaudeUsageState = {
   session: { isActive: false, pid: null, workspace: null, ideName: null, source: null, sessionCount: 0 },
   sessionStartedAt: null,
   currentModel: null,
-  tokens: { inputToday: 0, outputToday: 0, cacheReadToday: 0 },
+  tokens: { inputToday: 0, outputToday: 0, cacheReadToday: 0, inputLastHour: 0, outputLastHour: 0 },
   limits: { hourlyUsed: 0, hourlyEstimate: 0, weeklyUsed: 0, weeklyEstimate: 0 },
   plan: { subscriptionType: 'unknown', rateLimitTier: 'unknown' },
 };
