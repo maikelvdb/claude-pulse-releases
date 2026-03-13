@@ -27,6 +27,14 @@ export interface PlanInfo {
   rateLimitTier: string;
 }
 
+export interface CliStatus {
+  sessionPercent: number;
+  weeklyPercent: number;
+  sessionResetTime: string | null;
+  weeklyResetTime: string | null;
+  lastUpdated: number;
+}
+
 export interface ClaudeUsageState {
   session: SessionInfo;
   currentModel: string | null;
@@ -34,6 +42,7 @@ export interface ClaudeUsageState {
   limits: UsageLimits;
   plan: PlanInfo;
   sessionStartedAt: number | null;
+  cliStatus: CliStatus | null;
 }
 
 export interface IpcChannels {

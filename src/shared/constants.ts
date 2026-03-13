@@ -11,6 +11,8 @@ export const POLL_INTERVAL_SESSION = 2000;   // 2s
 export const POLL_INTERVAL_STATS = 10000;    // 10s
 export const POLL_INTERVAL_JSONL = 30000;    // 30s
 
+export const POLL_INTERVAL_CLI_STATUS = 30000; // 30s
+
 export const AUTO_HIDE_DELAY = 3000;         // 3s
 export const ANIMATION_DURATION = 300;       // 300ms
 

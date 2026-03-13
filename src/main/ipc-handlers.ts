@@ -759,7 +759,7 @@ function buildState(): ClaudeUsageState {
     tokens.outputToday
   );
 
-  return { session, currentModel, tokens, limits, plan, sessionStartedAt };
+  return { session, currentModel, tokens, limits, plan, sessionStartedAt, cliStatus: null };
 }
 
 export function setupIpcHandlers(mainWindow: BrowserWindow): void {
