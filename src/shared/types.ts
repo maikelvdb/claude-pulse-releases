@@ -4,6 +4,7 @@ export interface SessionInfo {
   workspace: string | null;
   ideName: string | null;
   source: 'ide' | 'cli' | null;
+  sessionCount: number;
 }
 
 export interface TokenUsage {

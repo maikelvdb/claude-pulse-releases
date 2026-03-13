@@ -1,103 +1,110 @@
 import fs from 'fs';
 import { TokenUsage } from '../../shared/types';
-import { findLatestJsonlFile } from './session-file';
+import { findTodayJsonlFiles } from './session-file';
 
-// Cache for incremental reading
-let cache: {
-  filePath: string;
+// Cache for incremental reading — keyed per file
+const fileCache = new Map<string, {
   fileSize: number;
   inputTotal: number;
   outputTotal: number;
   cacheReadTotal: number;
-} | null = null;
+}>();
+
+function parseTokensFromContent(content: string): { input: number; output: number; cacheRead: number } {
+  let input = 0;
+  let output = 0;
+  let cacheRead = 0;
+
+  const lines = content.trim().split('\n');
+  for (const line of lines) {
+    if (!line) continue;
+    try {
+      const entry = JSON.parse(line);
+      const usage = entry.message?.usage ?? entry.usage;
+      if (!usage) continue;
+      input += usage.input_tokens ?? 0;
+      output += usage.output_tokens ?? 0;
+      cacheRead += usage.cache_read_input_tokens ?? 0;
+    } catch {
+      continue;
+    }
+  }
+
+  return { input, output, cacheRead };
+}
 
 /**
- * Find the most recently modified JSONL session file and sum all
- * usage.input_tokens / usage.output_tokens from assistant messages.
- * This gives live cumulative token counts that update as the session progresses.
- *
- * Uses incremental reading: if the same file has grown since last poll,
- * only the new bytes are read and parsed.
+ * Sum token usage across ALL JSONL session files modified in the last 24 hours.
+ * Uses per-file incremental caching so only new bytes are parsed on each poll.
  */
 export function getTodayTokenUsage(): TokenUsage {
   const empty: TokenUsage = { inputToday: 0, outputToday: 0, cacheReadToday: 0 };
 
   try {
-    const latestFile = findLatestJsonlFile();
-    if (!latestFile) return empty;
+    const todayFiles = findTodayJsonlFiles();
+    if (todayFiles.length === 0) return empty;
 
-    // Only count if the file was modified recently (within 24h)
-    const stat = fs.statSync(latestFile);
-    if (Date.now() - stat.mtimeMs > 24 * 60 * 60 * 1000) return empty;
+    let totalInput = 0;
+    let totalOutput = 0;
+    let totalCacheRead = 0;
 
-    const fileSize = stat.size;
+    // Track which files are still active to clean up stale cache entries
+    const activeFiles = new Set(todayFiles);
 
-    // If same file and it has grown, read only the new bytes
-    if (cache && cache.filePath === latestFile && fileSize >= cache.fileSize) {
-      if (fileSize === cache.fileSize) {
-        // No change
-        return {
-          inputToday: cache.inputTotal,
-          outputToday: cache.outputTotal,
-          cacheReadToday: cache.cacheReadTotal,
-        };
-      }
+    for (const filePath of todayFiles) {
+      try {
+        const stat = fs.statSync(filePath);
+        const fileSize = stat.size;
+        const cached = fileCache.get(filePath);
 
-      // Read only new bytes from the cached offset
-      const fd = fs.openSync(latestFile, 'r');
-      const newBytes = Buffer.alloc(fileSize - cache.fileSize);
-      fs.readSync(fd, newBytes, 0, newBytes.length, cache.fileSize);
-      fs.closeSync(fd);
+        if (cached && fileSize >= cached.fileSize) {
+          if (fileSize === cached.fileSize) {
+            // No change — use cached totals
+            totalInput += cached.inputTotal;
+            totalOutput += cached.outputTotal;
+            totalCacheRead += cached.cacheReadTotal;
+            continue;
+          }
 
-      const newContent = newBytes.toString('utf-8');
-      const lines = newContent.trim().split('\n');
+          // File grew — read only new bytes
+          const fd = fs.openSync(filePath, 'r');
+          const newBytes = Buffer.alloc(fileSize - cached.fileSize);
+          fs.readSync(fd, newBytes, 0, newBytes.length, cached.fileSize);
+          fs.closeSync(fd);
 
-      let input = cache.inputTotal;
-      let output = cache.outputTotal;
-      let cacheRead = cache.cacheReadTotal;
+          const parsed = parseTokensFromContent(newBytes.toString('utf-8'));
+          const input = cached.inputTotal + parsed.input;
+          const output = cached.outputTotal + parsed.output;
+          const cacheRead = cached.cacheReadTotal + parsed.cacheRead;
 
-      for (const line of lines) {
-        if (!line) continue;
-        try {
-          const entry = JSON.parse(line);
-          const usage = entry.message?.usage ?? entry.usage;
-          if (!usage) continue;
-          input += usage.input_tokens ?? 0;
-          output += usage.output_tokens ?? 0;
-          cacheRead += usage.cache_read_input_tokens ?? 0;
-        } catch {
+          fileCache.set(filePath, { fileSize, inputTotal: input, outputTotal: output, cacheReadTotal: cacheRead });
+          totalInput += input;
+          totalOutput += output;
+          totalCacheRead += cacheRead;
           continue;
         }
-      }
 
-      cache = { filePath: latestFile, fileSize, inputTotal: input, outputTotal: output, cacheReadTotal: cacheRead };
-      return { inputToday: input, outputToday: output, cacheReadToday: cacheRead };
-    }
+        // New file or file was truncated — full parse
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const parsed = parseTokensFromContent(content);
 
-    // Different file or first read — full parse
-    const content = fs.readFileSync(latestFile, 'utf-8');
-    const lines = content.trim().split('\n');
-
-    let input = 0;
-    let output = 0;
-    let cacheRead = 0;
-
-    for (const line of lines) {
-      if (!line) continue;
-      try {
-        const entry = JSON.parse(line);
-        const usage = entry.message?.usage ?? entry.usage;
-        if (!usage) continue;
-        input += usage.input_tokens ?? 0;
-        output += usage.output_tokens ?? 0;
-        cacheRead += usage.cache_read_input_tokens ?? 0;
+        fileCache.set(filePath, { fileSize, inputTotal: parsed.input, outputTotal: parsed.output, cacheReadTotal: parsed.cacheRead });
+        totalInput += parsed.input;
+        totalOutput += parsed.output;
+        totalCacheRead += parsed.cacheRead;
       } catch {
         continue;
       }
     }
 
-    cache = { filePath: latestFile, fileSize, inputTotal: input, outputTotal: output, cacheReadTotal: cacheRead };
-    return { inputToday: input, outputToday: output, cacheReadToday: cacheRead };
+    // Clean up cache entries for files no longer in today's list
+    for (const key of fileCache.keys()) {
+      if (!activeFiles.has(key)) {
+        fileCache.delete(key);
+      }
+    }
+
+    return { inputToday: totalInput, outputToday: totalOutput, cacheReadToday: totalCacheRead };
   } catch {
     return empty;
   }

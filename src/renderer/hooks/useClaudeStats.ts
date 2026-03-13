@@ -34,7 +34,7 @@ declare global {
 }
 
 const defaultState: ClaudeUsageState = {
-  session: { isActive: false, pid: null, workspace: null, ideName: null, source: null },
+  session: { isActive: false, pid: null, workspace: null, ideName: null, source: null, sessionCount: 0 },
   sessionStartedAt: null,
   currentModel: null,
   tokens: { inputToday: 0, outputToday: 0, cacheReadToday: 0 },
