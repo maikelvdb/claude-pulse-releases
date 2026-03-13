@@ -1,5 +1,5 @@
 // src/renderer/App.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StatusBar } from './components/StatusBar';
 import { useClaudeStats } from './hooks/useClaudeStats';
 import { SnapEdge } from '../shared/types';
@@ -90,6 +90,24 @@ export default function App() {
       setHasUpdate(info.hasUpdate);
     });
     return cleanup;
+  }, []);
+
+  // Konami code: ↑↑↓↓←→←→BA
+  const konamiRef = useRef<string[]>([]);
+  const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      konamiRef.current.push(e.key);
+      konamiRef.current = konamiRef.current.slice(-10);
+      if (konamiRef.current.join(',') === KONAMI.join(',')) {
+        document.documentElement.setAttribute('data-rainbow', 'true');
+        setTimeout(() => document.documentElement.removeAttribute('data-rainbow'), 10000);
+        konamiRef.current = [];
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, []);
 
   const translateClass = getTranslateClass(snapEdge, visible);

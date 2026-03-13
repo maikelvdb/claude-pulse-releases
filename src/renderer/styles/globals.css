@@ -83,6 +83,20 @@ body {
   -webkit-user-select: none;
 }
 
+/* Rainbow mode (Konami code) */
+@keyframes rainbow-hue {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+[data-rainbow="true"] {
+  animation: rainbow-hue 2s linear infinite;
+}
+
+/* Night owl mode */
+[data-nightowl="true"] {
+  filter: brightness(0.9) saturate(0.85);
+}
+
 @keyframes confetti {
   0% { transform: translateY(0) rotate(0deg); opacity: 1; }
   100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
