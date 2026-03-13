@@ -4,7 +4,7 @@ import { getActiveSession } from './services/session-watcher';
 import { getTodayTokenUsage } from './services/stats-reader';
 import { getPlanInfo } from './services/credentials-reader';
 import { getCurrentModel, getUsageLimits } from './services/session-parser';
-import { recordSnapshot, getActivityHistory } from './services/activity-store';
+import { recordSnapshot, getActivityHistory, getDailyRollups } from './services/activity-store';
 import { getCachedUpdate, checkForUpdate, downloadUpdate, runInstaller } from './services/update-checker';
 import { checkRateLimits } from './services/rate-limit-notifier';
 import { getProjectBreakdown } from './services/project-scanner';
@@ -688,6 +688,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
     cachedState = buildState();
     mainWindow.webContents.send('claude:usage-update', cachedState);
     mainWindow.webContents.send('claude:activity-history', getActivityHistory());
+    mainWindow.webContents.send('claude:daily-rollups', getDailyRollups());
   });
 
   ipcMain.on('widget:request-snap-edge', () => {
@@ -764,6 +765,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
       newState.session.isActive
     );
     mainWindow.webContents.send('claude:activity-history', getActivityHistory());
+    mainWindow.webContents.send('claude:daily-rollups', getDailyRollups());
 
     // Only push usage update when token totals or model actually changed
     const changed =
@@ -788,4 +790,5 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
   if (cachedState.session.isActive) sessionStartedAt = Date.now();
   mainWindow.webContents.send('claude:usage-update', cachedState);
   mainWindow.webContents.send('claude:activity-history', getActivityHistory());
+  mainWindow.webContents.send('claude:daily-rollups', getDailyRollups());
 }
