@@ -2,8 +2,8 @@
 import { BrowserWindow, screen } from 'electron';
 import path from 'path';
 import {
-  WINDOW_WIDTH_H, WINDOW_HEIGHT_H,
-  WINDOW_WIDTH_V, WINDOW_HEIGHT_V,
+  WINDOW_WIDTH_H, WINDOW_HEIGHT_H, WINDOW_HEIGHT_H_PREVIEW,
+  WINDOW_WIDTH_V, WINDOW_HEIGHT_V, WINDOW_HEIGHT_V_PREVIEW,
   WINDOW_HEIGHT_H_EXPANDED, WINDOW_WIDTH_V_EXPANDED,
   AUTO_HIDE_DELAY,
 } from '../shared/constants';
@@ -16,6 +16,7 @@ let hideTimeout: NodeJS.Timeout | null = null;
 let currentEdge: SnapEdge = 'top';
 let onEdgeChange: ((edge: SnapEdge) => void) | null = null;
 let isExpanded = false;
+let hasPreview = false;
 let cachedBounds: Electron.Rectangle | null = null;
 
 // User-chosen offset along the snapped edge (null = centered)
@@ -36,14 +37,14 @@ function isHorizontalEdge(edge: SnapEdge): boolean {
 
 function getWindowSize(edge: SnapEdge): { width: number; height: number } {
   if (isHorizontalEdge(edge)) {
-    return {
-      width: WINDOW_WIDTH_H,
-      height: isExpanded ? WINDOW_HEIGHT_H_EXPANDED : WINDOW_HEIGHT_H,
-    };
+    let h = WINDOW_HEIGHT_H;
+    if (isExpanded) h = WINDOW_HEIGHT_H_EXPANDED;
+    else if (hasPreview) h = WINDOW_HEIGHT_H_PREVIEW;
+    return { width: WINDOW_WIDTH_H, height: h };
   }
   return {
     width: isExpanded ? WINDOW_WIDTH_V_EXPANDED : WINDOW_WIDTH_V,
-    height: WINDOW_HEIGHT_V,
+    height: hasPreview ? WINDOW_HEIGHT_V_PREVIEW : WINDOW_HEIGHT_V,
   };
 }
 
@@ -203,6 +204,15 @@ export function resizeForExpand(expanded: boolean): void {
   isExpanded = expanded;
   const pos = getPosition(currentEdge);
   applyBounds(pos);
+}
+
+export function resizeForPreview(preview: boolean): void {
+  if (!mainWindow || hasPreview === preview) return;
+  hasPreview = preview;
+  if (!isExpanded) {
+    const pos = getPosition(currentEdge);
+    applyBounds(pos);
+  }
 }
 
 let hoverIntervalId: ReturnType<typeof setInterval> | null = null;

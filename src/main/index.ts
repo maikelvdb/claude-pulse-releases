@@ -1,6 +1,6 @@
 // src/main/index.ts
 import { app, globalShortcut } from 'electron';
-import { createWindow, showWidget, scheduleHide, setOnEdgeChange, setOnOffsetChange, startHoverDetection, stopHoverDetection, getWindow } from './window-manager';
+import { createWindow, showWidget, scheduleHide, setOnEdgeChange, setOnOffsetChange, startHoverDetection, stopHoverDetection, getWindow, resizeForPreview } from './window-manager';
 import { setupIpcHandlers } from './ipc-handlers';
 import { getActiveSession } from './services/session-watcher';
 import { loadConfig, saveConfig } from './services/config-store';
@@ -63,6 +63,7 @@ app.whenReady().then(() => {
   });
 
   startConversationTailer((msg) => {
+    resizeForPreview(!!msg);
     win.webContents.send('claude:conversation-preview', msg);
   });
 
@@ -72,6 +73,7 @@ app.whenReady().then(() => {
     if (session.isActive) {
       showWidget();
     } else {
+      resizeForPreview(false);
       scheduleHide();
     }
   }, POLL_INTERVAL_SESSION);

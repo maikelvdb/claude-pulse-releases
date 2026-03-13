@@ -5,18 +5,28 @@ import { openHelpWindow } from './ipc-handlers';
 
 let tray: Tray | null = null;
 
-export function createTray(): void {
-  // Use the app icon for the tray
-  const iconPath = path.join(__dirname, '..', '..', 'build', 'icon.png');
-  let icon: Electron.NativeImage;
-  try {
-    icon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
-  } catch {
-    // Fallback: create a simple orange square
-    icon = nativeImage.createEmpty();
+function getTrayIcon(): Electron.NativeImage {
+  // In packaged app: resources/app.asar/build/icon.ico
+  // In dev: project-root/build/icon.ico
+  const basePath = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar', 'build')
+    : path.join(__dirname, '..', '..', 'build');
+
+  const icoPath = path.join(basePath, process.platform === 'win32' ? 'icon.ico' : 'icon.png');
+  const icon = nativeImage.createFromPath(icoPath);
+
+  if (icon.isEmpty()) {
+    // Fallback: try .png
+    const pngPath = path.join(basePath, 'icon.png');
+    const pngIcon = nativeImage.createFromPath(pngPath);
+    return pngIcon.isEmpty() ? nativeImage.createEmpty() : pngIcon.resize({ width: 16, height: 16 });
   }
 
-  tray = new Tray(icon);
+  return icon.resize({ width: 16, height: 16 });
+}
+
+export function createTray(): void {
+  tray = new Tray(getTrayIcon());
   tray.setToolTip('Claude Pulse');
 
   const contextMenu = Menu.buildFromTemplate([

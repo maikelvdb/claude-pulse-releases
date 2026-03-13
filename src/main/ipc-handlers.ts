@@ -1,4 +1,5 @@
 import { BrowserWindow, ipcMain, screen } from 'electron';
+import { marked } from 'marked';
 import { getActiveSession } from './services/session-watcher';
 import { getTodayTokenUsage } from './services/stats-reader';
 import { getPlanInfo } from './services/credentials-reader';
@@ -148,10 +149,17 @@ kbd {
 }
 .update-banner .version { color: #c8c8d8; font-size: 12px; margin-bottom: 6px; }
 .release-notes-content {
-  color: #999; font-size: 12px; line-height: 1.6; white-space: pre-wrap;
+  color: #999; font-size: 12px; line-height: 1.6;
 }
+.release-notes-content h2 { color: #e0e0f0; font-size: 14px; margin: 14px 0 6px; border-bottom: 1px solid #333346; padding-bottom: 4px; }
+.release-notes-content h3 { color: #c8c8d8; font-size: 13px; margin: 10px 0 4px; }
+.release-notes-content ul { margin: 4px 0 8px 16px; padding: 0; }
+.release-notes-content li { margin-bottom: 3px; }
+.release-notes-content strong { color: #c8c8d8; }
+.release-notes-content code { background: #2a2a3e; padding: 1px 5px; border-radius: 3px; font-size: 11px; color: #E87443; }
 .release-notes-content a { color: #E87443; text-decoration: none; }
 .release-notes-content a:hover { text-decoration: underline; }
+.release-notes-content p { margin-bottom: 6px; }
 .update-link {
   color: #E87443; text-decoration: none; font-size: 12px;
   display: inline-block; margin-top: 8px;
@@ -342,7 +350,7 @@ kbd {
       document.getElementById('current-version').textContent = 'Current version: v' + e.data.currentVersion;
 
       if (e.data.releaseNotes) {
-        document.getElementById('release-notes').textContent = e.data.releaseNotes;
+        document.getElementById('release-notes').innerHTML = e.data.releaseNotes;
       }
 
       if (e.data.hasUpdate) {
@@ -415,8 +423,13 @@ export function openHelpWindow(): void {
   helpWindow.webContents.on('did-finish-load', () => {
     const update = getCachedUpdate();
     if (update) {
+      const payload = {
+        type: 'update-info',
+        ...update,
+        releaseNotes: update.releaseNotes ? marked(update.releaseNotes) : '',
+      };
       helpWindow?.webContents.executeJavaScript(
-        `window.postMessage(${JSON.stringify({ type: 'update-info', ...update })}, '*')`
+        `window.postMessage(${JSON.stringify(payload)}, '*')`
       );
     }
     // Highlight current theme button

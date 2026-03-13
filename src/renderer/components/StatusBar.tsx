@@ -75,7 +75,7 @@ function HelpButton({ onClick, onUpdate, hasUpdate }: { onClick: () => void; onU
     <button
       onClick={(e) => {
         e.stopPropagation();
-        hasUpdate ? onUpdate() : onClick();
+        onClick();
       }}
       className="relative flex items-center justify-center w-7 h-7 rounded-md bg-claude-orange/20 border border-claude-orange/50 text-claude-orange hover:bg-claude-orange/40 hover:border-claude-orange transition-colors text-xs font-bold leading-none flex-shrink-0 cursor-pointer"
       title={hasUpdate ? "Update available! Click to update" : "Help & shortcuts"}
