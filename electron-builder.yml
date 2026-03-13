@@ -3,11 +3,13 @@ productName: Claude Pulse
 icon: build/icon
 directories:
   output: release
+npmRebuild: false
 files:
   - dist/**/*
   - build/icon.ico
   - build/icon.png
   - package.json
+  - node_modules/@homebridge/node-pty-prebuilt-multiarch/**/*
 win:
   target: nsis
   icon: build/icon.ico
