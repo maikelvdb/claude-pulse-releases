@@ -15,6 +15,7 @@ import { getSnapEdge, resizeForExpand, setPositionLocked, getWindow } from './wi
 import { saveConfig, getConfig } from './services/config-store';
 
 let cachedState: ClaudeUsageState | null = null;
+let sessionStartedAt: number | null = null;
 let helpWindow: BrowserWindow | null = null;
 
 const HELP_HTML = `<!DOCTYPE html>
@@ -678,7 +679,7 @@ function buildState(): ClaudeUsageState {
     tokens.outputToday
   );
 
-  return { session, currentModel, tokens, limits, plan };
+  return { session, currentModel, tokens, limits, plan, sessionStartedAt };
 }
 
 export function setupIpcHandlers(mainWindow: BrowserWindow): void {
@@ -742,6 +743,11 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
     const sessionChanged = cachedState?.session.isActive !== newSession.isActive;
 
     if (sessionChanged) {
+      if (newSession.isActive) {
+        sessionStartedAt = Date.now();
+      } else {
+        sessionStartedAt = null;
+      }
       cachedState = buildState();
       mainWindow.webContents.send('claude:usage-update', cachedState);
     }
@@ -779,6 +785,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
 
   // Initial push
   cachedState = buildState();
+  if (cachedState.session.isActive) sessionStartedAt = Date.now();
   mainWindow.webContents.send('claude:usage-update', cachedState);
   mainWindow.webContents.send('claude:activity-history', getActivityHistory());
 }
