@@ -3,7 +3,7 @@ import { app, globalShortcut } from 'electron';
 import { createWindow, showWidget, scheduleHide, setOnEdgeChange, setOnOffsetChange, startHoverDetection, stopHoverDetection, getWindow, resizeForPreview } from './window-manager';
 import { setupIpcHandlers } from './ipc-handlers';
 import { getActiveSession } from './services/session-watcher';
-import { loadConfig, saveConfig } from './services/config-store';
+import { loadConfig, saveConfig, getConfig } from './services/config-store';
 import { loadActivityHistory, flushActivityHistory } from './services/activity-store';
 import { startUpdateChecker, stopUpdateChecker, getCachedUpdate } from './services/update-checker';
 import { createTray, destroyTray } from './tray';
@@ -38,6 +38,15 @@ app.whenReady().then(() => {
   // Global shortcut: Ctrl+Shift+Q to quit (with confirm in renderer)
   globalShortcut.register('CommandOrControl+Shift+Q', () => {
     win.webContents.send('widget:confirm-quit');
+  });
+
+  // Global shortcut: Ctrl+Shift+T to cycle themes
+  const themes: ('dark' | 'light' | 'sunset')[] = ['dark', 'light', 'sunset'];
+  globalShortcut.register('CommandOrControl+Shift+T', () => {
+    const current = getConfig().theme || 'dark';
+    const next = themes[(themes.indexOf(current) + 1) % themes.length];
+    saveConfig({ theme: next });
+    win.webContents.send('widget:theme-change', next);
   });
 
   // Persist edge and offset changes

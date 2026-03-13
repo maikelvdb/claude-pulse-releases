@@ -5,7 +5,7 @@ import { getTodayTokenUsage } from './services/stats-reader';
 import { getPlanInfo } from './services/credentials-reader';
 import { getCurrentModel, getUsageLimits } from './services/session-parser';
 import { recordSnapshot, getActivityHistory } from './services/activity-store';
-import { getCachedUpdate, downloadUpdate, runInstaller } from './services/update-checker';
+import { getCachedUpdate, checkForUpdate, downloadUpdate, runInstaller } from './services/update-checker';
 import { checkRateLimits } from './services/rate-limit-notifier';
 import { getProjectBreakdown } from './services/project-scanner';
 import { ClaudeUsageState, ThemeName } from '../shared/types';
@@ -269,6 +269,8 @@ kbd {
             <td>Toggle widget show / hide (minimize)</td></tr>
         <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd></td>
             <td>Quit Claude Pulse (with confirmation)</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>T</kbd></td>
+            <td>Cycle theme (Dark &rarr; Light &rarr; Sunset)</td></tr>
       </table>
     </div>
 
@@ -390,6 +392,18 @@ kbd {
 </body>
 </html>`;
 
+function sendUpdateToHelp(update: import('./services/update-checker').UpdateInfo | null): void {
+  if (!helpWindow || helpWindow.isDestroyed() || !update) return;
+  const payload = {
+    type: 'update-info',
+    ...update,
+    releaseNotes: update.releaseNotes ? marked(update.releaseNotes) : '',
+  };
+  helpWindow.webContents.executeJavaScript(
+    `window.postMessage(${JSON.stringify(payload)}, '*')`
+  );
+}
+
 export function openHelpWindow(): void {
   if (helpWindow && !helpWindow.isDestroyed()) {
     helpWindow.focus();
@@ -421,17 +435,9 @@ export function openHelpWindow(): void {
   helpWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(HELP_HTML)}`);
 
   helpWindow.webContents.on('did-finish-load', () => {
-    const update = getCachedUpdate();
-    if (update) {
-      const payload = {
-        type: 'update-info',
-        ...update,
-        releaseNotes: update.releaseNotes ? marked(update.releaseNotes) : '',
-      };
-      helpWindow?.webContents.executeJavaScript(
-        `window.postMessage(${JSON.stringify(payload)}, '*')`
-      );
-    }
+    // Send cached update immediately, then refresh in background
+    sendUpdateToHelp(getCachedUpdate());
+    checkForUpdate().then((fresh) => sendUpdateToHelp(fresh));
     // Highlight current theme button
     const config = getConfig();
     helpWindow?.webContents.executeJavaScript(

@@ -18,7 +18,7 @@ export interface UpdateInfo {
 
 const REPO_OWNER = 'maikelvdb';
 const REPO_NAME = 'claude-pulse-releases';
-const CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
+const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 let cachedUpdate: UpdateInfo | null = null;
 let checkIntervalId: ReturnType<typeof setInterval> | null = null;
