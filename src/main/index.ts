@@ -8,6 +8,7 @@ import { loadActivityHistory, flushActivityHistory } from './services/activity-s
 import { startUpdateChecker, stopUpdateChecker, getCachedUpdate } from './services/update-checker';
 import { createTray, destroyTray } from './tray';
 import { startConversationTailer, stopConversationTailer } from './services/conversation-tailer';
+import { startCliStatusPoller, stopCliStatusPoller } from './services/cli-status-poller';
 import { POLL_INTERVAL_SESSION } from '../shared/constants';
 import path from 'path';
 
@@ -84,6 +85,10 @@ app.whenReady().then(() => {
     win.webContents.send('claude:conversation-preview', msg);
   });
 
+  startCliStatusPoller((status) => {
+    win.webContents.send('claude:cli-status', status);
+  });
+
   // Monitor for active sessions to auto-show
   sessionIntervalId = setInterval(() => {
     const session = getActiveSession();
@@ -101,6 +106,7 @@ app.on('before-quit', () => {
   flushActivityHistory();
   stopHoverDetection();
   stopUpdateChecker();
+  stopCliStatusPoller();
   stopConversationTailer();
   destroyTray();
   if (sessionIntervalId !== null) {

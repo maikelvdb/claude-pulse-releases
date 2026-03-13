@@ -7,6 +7,7 @@ import { getCurrentModel, getUsageLimits } from './services/session-parser';
 import { recordSnapshot, getActivityHistory, getDailyRollups } from './services/activity-store';
 import { getCachedUpdate, checkForUpdate, downloadUpdate, runInstaller } from './services/update-checker';
 import { checkRateLimits } from './services/rate-limit-notifier';
+import { getCachedCliStatus } from './services/cli-status-poller';
 import { getProjectBreakdown } from './services/project-scanner';
 import { getModelBreakdown } from './services/model-breakdown';
 import { ClaudeUsageState, ThemeName } from '../shared/types';
@@ -751,7 +752,7 @@ function buildState(): ClaudeUsageState {
   const tokens = getTodayTokenUsage();
   const plan = getPlanInfo();
   const currentModel = getCurrentModel();
-  const limits = getUsageLimits(
+  let limits = getUsageLimits(
     plan.rateLimitTier,
     tokens.inputLastHour,
     tokens.outputLastHour,
@@ -759,7 +760,18 @@ function buildState(): ClaudeUsageState {
     tokens.outputToday
   );
 
-  return { session, currentModel, tokens, limits, plan, sessionStartedAt, cliStatus: null };
+  const cliStatus = getCachedCliStatus();
+
+  // Override limits with CLI data when available and fresh (< 60s old)
+  if (cliStatus && Date.now() - cliStatus.lastUpdated < 60_000) {
+    limits = {
+      ...limits,
+      hourlyUsed: cliStatus.sessionPercent / 100,
+      weeklyUsed: cliStatus.weeklyPercent / 100,
+    };
+  }
+
+  return { session, currentModel, tokens, limits, plan, sessionStartedAt, cliStatus };
 }
 
 export function setupIpcHandlers(mainWindow: BrowserWindow): void {
