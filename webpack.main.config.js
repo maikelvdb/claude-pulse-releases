@@ -21,6 +21,7 @@ const commonConfig = {
   },
   externals: {
     electron: 'commonjs electron',
+    'node-pty': 'commonjs node-pty',
   },
 };
 
