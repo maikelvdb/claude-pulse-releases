@@ -1,7 +1,6 @@
 import fs from 'fs';
-import path from 'path';
-import { PROJECTS_DIR } from '../../shared/constants';
 import { UsageLimits } from '../../shared/types';
+import { findLatestJsonlFile } from './session-file';
 
 // Default hourly/weekly token estimates per tier
 const TIER_LIMITS: Record<string, { hourly: number; weekly: number }> = {
@@ -12,30 +11,7 @@ const TIER_LIMITS: Record<string, { hourly: number; weekly: number }> = {
 
 export function getCurrentModel(): string | null {
   try {
-    if (!fs.existsSync(PROJECTS_DIR)) return null;
-
-    // Find the most recently modified JSONL file across all projects
-    let latestFile: string | null = null;
-    let latestMtime = 0;
-
-    const projectDirs = fs.readdirSync(PROJECTS_DIR, { withFileTypes: true })
-      .filter(d => d.isDirectory());
-
-    for (const dir of projectDirs) {
-      const dirPath = path.join(PROJECTS_DIR, dir.name);
-      const jsonlFiles = fs.readdirSync(dirPath)
-        .filter(f => f.endsWith('.jsonl') && !f.includes('subagent'));
-
-      for (const file of jsonlFiles) {
-        const filePath = path.join(dirPath, file);
-        const stat = fs.statSync(filePath);
-        if (stat.mtimeMs > latestMtime) {
-          latestMtime = stat.mtimeMs;
-          latestFile = filePath;
-        }
-      }
-    }
-
+    const latestFile = findLatestJsonlFile();
     if (!latestFile) return null;
 
     // Read last few lines to find model info

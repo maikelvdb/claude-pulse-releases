@@ -19,12 +19,12 @@ export const ANIMATION_DURATION = 300;       // 300ms
 export const PULSE_CONFIG_FILE = path.join(CLAUDE_DIR, 'claude-pulse-config.json');
 
 // Horizontal dimensions (top/bottom)
-export const WINDOW_WIDTH_H = 480;
-export const WINDOW_HEIGHT_H = 60;
+export const WINDOW_WIDTH_H = 540;
+export const WINDOW_HEIGHT_H = 68;
 
 // Vertical dimensions (left/right)
-export const WINDOW_WIDTH_V = 80;
-export const WINDOW_HEIGHT_V = 320;
+export const WINDOW_WIDTH_V = 90;
+export const WINDOW_HEIGHT_V = 380;
 
 // Expanded dimensions (graph visible)
 export const WINDOW_HEIGHT_H_EXPANDED = 200;

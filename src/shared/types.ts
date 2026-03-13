@@ -54,3 +54,11 @@ export interface ActivitySnapshot {
   output: number;   // cumulative output tokens today
   active: boolean;  // session active at this moment
 }
+
+export interface UpdateInfo {
+  hasUpdate: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  releaseNotes: string;
+  releaseUrl: string;
+}

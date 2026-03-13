@@ -29,6 +29,10 @@ module.exports = {
         test: /\.css$/,
         use: ['style-loader', 'css-loader', 'postcss-loader'],
       },
+      {
+        test: /\.(webm|mov|mp4)$/,
+        type: 'asset/resource',
+      },
     ],
   },
   plugins: [

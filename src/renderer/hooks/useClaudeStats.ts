@@ -1,6 +1,6 @@
 // src/renderer/hooks/useClaudeStats.ts
 import { useState, useEffect, useCallback } from 'react';
-import { ClaudeUsageState, SnapEdge, ActivitySnapshot } from '../../shared/types';
+import { ClaudeUsageState, SnapEdge, ActivitySnapshot, UpdateInfo } from '../../shared/types';
 
 declare global {
   interface Window {
@@ -11,7 +11,13 @@ declare global {
       onSnapEdge: (callback: (edge: SnapEdge) => void) => () => void;
       requestUpdate: () => void;
       requestSnapEdge: () => void;
+      onHover: (callback: (hovered: boolean) => void) => () => void;
+      onToggleMinimize: (callback: () => void) => () => void;
       requestResize: (expanded: boolean) => void;
+      openHelp: () => void;
+      onUpdateInfo: (callback: (info: UpdateInfo) => void) => () => void;
+      onConfirmQuit: (callback: () => void) => () => void;
+      quit: () => void;
     };
   }
 }

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#12122a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="256" height="256" rx="48" ry="48" fill="url(#bg)"/>
+
+  <!-- Claude blob - stylized teardrop/pebble shape -->
+  <path d="
+    M128 52
+    C 90 52, 62 78, 62 112
+    C 62 146, 90 168, 128 168
+    C 166 168, 194 146, 194 112
+    C 194 78, 166 52, 128 52
+    Z
+  " fill="#E87443" opacity="0.25"/>
+
+  <!-- Inner blob slightly smaller and brighter -->
+  <path d="
+    M128 62
+    C 96 62, 74 84, 74 112
+    C 74 140, 96 158, 128 158
+    C 160 158, 182 140, 182 112
+    C 182 84, 160 62, 128 62
+    Z
+  " fill="#E87443" opacity="0.45"/>
+
+  <!-- Feet -->
+  <circle cx="108" cy="176" r="7" fill="#E87443" opacity="0.35"/>
+  <circle cx="148" cy="176" r="7" fill="#E87443" opacity="0.35"/>
+
+  <!-- Pulse/heartbeat line - bold and clear -->
+  <polyline
+    points="16,138 60,138 80,138 96,100 112,172 128,118 140,138 156,138 168,120 180,138 240,138"
+    fill="none"
+    stroke="#E87443"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <!-- Glow behind pulse -->
+  <polyline
+    points="16,138 60,138 80,138 96,100 112,172 128,118 140,138 156,138 168,120 180,138 240,138"
+    fill="none"
+    stroke="#E87443"
+    stroke-width="16"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.15"
+  />
+
+  <!-- PULSE text -->
+  <text x="128" y="218" text-anchor="middle" fill="#E87443" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="bold" letter-spacing="6" opacity="0.8">PULSE</text>
+</svg>

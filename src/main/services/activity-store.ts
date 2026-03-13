@@ -54,7 +54,7 @@ function persistToDisk(): void {
 }
 
 export function getActivityHistory(): ActivitySnapshot[] {
-  return [...snapshots];
+  return snapshots;
 }
 
 export function flushActivityHistory(): void {

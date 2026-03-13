@@ -1,14 +1,17 @@
 // src/main/index.ts
-import { app, screen } from 'electron';
-import { createWindow, showWidget, scheduleHide, getWindow, getSnapEdge, setOnEdgeChange } from './window-manager';
+import { app, globalShortcut } from 'electron';
+import { createWindow, showWidget, scheduleHide, setOnEdgeChange, startHoverDetection, stopHoverDetection } from './window-manager';
 import { setupIpcHandlers } from './ipc-handlers';
 import { getActiveSession } from './services/session-watcher';
 import { loadConfig, saveConfig } from './services/config-store';
 import { loadActivityHistory, flushActivityHistory } from './services/activity-store';
-import { POLL_INTERVAL_SESSION, WINDOW_WIDTH_H, WINDOW_HEIGHT_V } from '../shared/constants';
+import { startUpdateChecker, stopUpdateChecker } from './services/update-checker';
+import { POLL_INTERVAL_SESSION } from '../shared/constants';
 import path from 'path';
 
 const isDev = !app.isPackaged;
+
+let sessionIntervalId: ReturnType<typeof setInterval> | null = null;
 
 app.whenReady().then(() => {
   const config = loadConfig();
@@ -22,14 +25,30 @@ app.whenReady().then(() => {
   }
 
   setupIpcHandlers(win);
+  startHoverDetection();
+
+  // Global shortcut: Ctrl+Shift+P to toggle minimize
+  globalShortcut.register('CommandOrControl+Shift+P', () => {
+    win.webContents.send('widget:toggle-minimize');
+  });
+
+  // Global shortcut: Ctrl+Shift+Q to quit (with confirm in renderer)
+  globalShortcut.register('CommandOrControl+Shift+Q', () => {
+    win.webContents.send('widget:confirm-quit');
+  });
 
   // Persist edge changes
   setOnEdgeChange((edge) => {
     saveConfig({ snapEdge: edge });
   });
 
+  // Check for updates
+  startUpdateChecker((info) => {
+    win.webContents.send('widget:update-info', info);
+  });
+
   // Monitor for active sessions to auto-show
-  setInterval(() => {
+  sessionIntervalId = setInterval(() => {
     const session = getActiveSession();
     if (session.isActive) {
       showWidget();
@@ -37,39 +56,17 @@ app.whenReady().then(() => {
       scheduleHide();
     }
   }, POLL_INTERVAL_SESSION);
-
-  // Mouse proximity detection — adapts to current snap edge
-  setInterval(() => {
-    const point = screen.getCursorScreenPoint();
-    const display = screen.getPrimaryDisplay();
-    const { width: sw, height: sh } = display.workAreaSize;
-    const edge = getSnapEdge();
-    const margin = 10;
-
-    let inZone = false;
-    switch (edge) {
-      case 'top':
-        inZone = point.y <= margin && Math.abs(point.x - sw / 2) <= WINDOW_WIDTH_H / 2 + 50;
-        break;
-      case 'bottom':
-        inZone = point.y >= sh - margin && Math.abs(point.x - sw / 2) <= WINDOW_WIDTH_H / 2 + 50;
-        break;
-      case 'left':
-        inZone = point.x <= margin && Math.abs(point.y - sh / 2) <= WINDOW_HEIGHT_V / 2 + 50;
-        break;
-      case 'right':
-        inZone = point.x >= sw - margin && Math.abs(point.y - sh / 2) <= WINDOW_HEIGHT_V / 2 + 50;
-        break;
-    }
-
-    if (inZone && getWindow()) {
-      showWidget();
-    }
-  }, 200);
 });
 
 app.on('before-quit', () => {
+  globalShortcut.unregisterAll();
   flushActivityHistory();
+  stopHoverDetection();
+  stopUpdateChecker();
+  if (sessionIntervalId !== null) {
+    clearInterval(sessionIntervalId);
+    sessionIntervalId = null;
+  }
 });
 
 app.on('window-all-closed', () => {
