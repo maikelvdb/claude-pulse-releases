@@ -17,6 +17,16 @@ let currentEdge: SnapEdge = 'top';
 let onEdgeChange: ((edge: SnapEdge) => void) | null = null;
 let isExpanded = false;
 let hasPreview = false;
+let positionLocked = false;
+
+export function setPositionLocked(locked: boolean): void {
+  positionLocked = locked;
+  if (mainWindow) {
+    mainWindow.setMovable(!locked);
+  }
+}
+
+
 let cachedBounds: Electron.Rectangle | null = null;
 
 // User-chosen offset along the snapped edge (null = centered)

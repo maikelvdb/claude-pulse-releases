@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import { marked } from 'marked';
 import { getActiveSession } from './services/session-watcher';
 import { getTodayTokenUsage } from './services/stats-reader';
@@ -8,9 +8,10 @@ import { recordSnapshot, getActivityHistory } from './services/activity-store';
 import { getCachedUpdate, checkForUpdate, downloadUpdate, runInstaller } from './services/update-checker';
 import { checkRateLimits } from './services/rate-limit-notifier';
 import { getProjectBreakdown } from './services/project-scanner';
+import { getModelBreakdown } from './services/model-breakdown';
 import { ClaudeUsageState, ThemeName } from '../shared/types';
 import { POLL_INTERVAL_SESSION, POLL_INTERVAL_STATS } from '../shared/constants';
-import { getSnapEdge, resizeForExpand } from './window-manager';
+import { getSnapEdge, resizeForExpand, setPositionLocked, getWindow } from './window-manager';
 import { saveConfig, getConfig } from './services/config-store';
 
 let cachedState: ClaudeUsageState | null = null;
@@ -195,6 +196,29 @@ kbd {
 .project-bar { height: 100%; background: #E87443; border-radius: 3px; transition: width 0.3s; }
 .no-projects { color: #666; font-size: 12px; font-style: italic; }
 
+.settings-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+.settings-label { font-size: 12px; color: #c8c8d8; }
+.settings-sublabel { font-size: 10px; color: #666; }
+.toggle {
+  position: relative; width: 36px; height: 20px; border-radius: 10px;
+  background: #2a2a3e; border: 1px solid #444; cursor: pointer; transition: background 0.2s;
+}
+.toggle.on { background: #E87443; border-color: #E87443; }
+.toggle-knob {
+  position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+  border-radius: 50%; background: #fff; transition: left 0.2s;
+}
+.toggle.on .toggle-knob { left: 18px; }
+input[type="range"] {
+  -webkit-appearance: none; width: 120px; height: 4px; border-radius: 2px;
+  background: #2a2a3e; outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: #E87443; cursor: pointer;
+}
+.opacity-value { font-size: 11px; color: #888; width: 30px; text-align: right; }
+
 .theme-picker { display: flex; gap: 8px; }
 .theme-btn {
   display: flex; align-items: center; gap: 6px;
@@ -276,6 +300,33 @@ kbd {
         </button>
       </div>
     </div>
+
+    <div class="section">
+      <h2>Settings</h2>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Opacity</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" id="opacity-slider" min="20" max="100" value="100" />
+          <span class="opacity-value" id="opacity-value">100%</span>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Lock position</div>
+          <div class="settings-sublabel">Prevent accidental drags</div>
+        </div>
+        <div class="toggle" id="lock-toggle"><div class="toggle-knob"></div></div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Start on login</div>
+          <div class="settings-sublabel">Launch when Windows starts</div>
+        </div>
+        <div class="toggle" id="autostart-toggle"><div class="toggle-knob"></div></div>
+      </div>
+    </div>
   </div>
 
   <!-- Shortcuts tab -->
@@ -314,6 +365,10 @@ kbd {
     <div class="section">
       <h2>Token Usage by Project (24h)</h2>
       <div id="project-list"><p style="color:#666">Loading...</p></div>
+    </div>
+    <div class="section">
+      <h2>Token Usage by Model (24h)</h2>
+      <div id="model-list"><p style="color:#666">Loading...</p></div>
     </div>
   </div>
 
@@ -377,6 +432,29 @@ kbd {
     });
   });
 
+  // Settings controls
+  var opacitySlider = document.getElementById('opacity-slider');
+  var opacityValue = document.getElementById('opacity-value');
+  var opacityTimer = null;
+  opacitySlider.addEventListener('input', function() {
+    var val = parseInt(opacitySlider.value);
+    opacityValue.textContent = val + '%';
+    if (opacityTimer) clearTimeout(opacityTimer);
+    opacityTimer = setTimeout(function() {
+      document.title = 'opacity:' + (val / 100);
+    }, 150);
+  });
+
+  document.getElementById('lock-toggle').addEventListener('click', function() {
+    this.classList.toggle('on');
+    document.title = 'lock:' + (this.classList.contains('on') ? '1' : '0');
+  });
+
+  document.getElementById('autostart-toggle').addEventListener('click', function() {
+    this.classList.toggle('on');
+    document.title = 'autostart:' + (this.classList.contains('on') ? '1' : '0');
+  });
+
   // Update info
   window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'update-info') {
@@ -416,6 +494,12 @@ kbd {
         };
       }
     }
+    if (e.data && e.data.type === 'settings') {
+      document.getElementById('opacity-slider').value = Math.round(e.data.opacity * 100);
+      document.getElementById('opacity-value').textContent = Math.round(e.data.opacity * 100) + '%';
+      if (e.data.positionLocked) document.getElementById('lock-toggle').classList.add('on');
+      if (e.data.autoStart) document.getElementById('autostart-toggle').classList.add('on');
+    }
     if (e.data && e.data.type === 'update-progress') {
       document.getElementById('progress-fill').style.width = e.data.percent + '%';
       document.getElementById('progress-text').textContent = e.data.percent + '% downloading...';
@@ -429,25 +513,28 @@ kbd {
       document.getElementById('update-error').style.display = 'block';
       document.getElementById('error-text').textContent = e.data.message;
     }
-    if (e.data && e.data.type === 'project-breakdown') {
-      var list = document.getElementById('project-list');
-      var projects = e.data.projects;
-      if (!projects || projects.length === 0) {
-        list.innerHTML = '<p class="no-projects">No active projects in the last 24 hours.</p>';
+    if (e.data && (e.data.type === 'model-breakdown' || e.data.type === 'project-breakdown')) {
+      var isModel = e.data.type === 'model-breakdown';
+      var targetEl = document.getElementById(isModel ? 'model-list' : 'project-list');
+      var items = isModel ? e.data.models : e.data.projects;
+      var emptyMsg = isModel ? 'No model usage in the last 24 hours.' : 'No active projects in the last 24 hours.';
+      if (!items || items.length === 0) {
+        targetEl.innerHTML = '<p class="no-projects">' + emptyMsg + '</p>';
         return;
       }
-      var maxTokens = projects[0].inputTokens + projects[0].outputTokens;
+      var maxTotal = items[0].inputTokens + items[0].outputTokens;
       var html = '';
-      projects.forEach(function(p) {
-        var total = p.inputTokens + p.outputTokens;
-        var pct = maxTokens > 0 ? (total / maxTokens * 100) : 0;
+      items.forEach(function(item) {
+        var total = item.inputTokens + item.outputTokens;
+        var pct = maxTotal > 0 ? (total / maxTotal * 100) : 0;
+        var label = item.model || item.projectDir;
         html += '<div class="project-row">' +
-          '<span class="project-name" title="' + p.projectDir + '">' + p.projectDir + '</span>' +
+          '<span class="project-name" title="' + label + '">' + label + '</span>' +
           '<div class="project-bar-wrap"><div class="project-bar" style="width:' + pct + '%"></div></div>' +
-          '<span class="project-tokens">' + fmtTokens(p.inputTokens) + ' in / ' + fmtTokens(p.outputTokens) + ' out</span>' +
+          '<span class="project-tokens">' + fmtTokens(item.inputTokens) + ' in / ' + fmtTokens(item.outputTokens) + ' out</span>' +
           '</div>';
       });
-      list.innerHTML = html;
+      targetEl.innerHTML = html;
     }
   });
 </script>
@@ -500,17 +587,22 @@ export function openHelpWindow(): void {
     // Send cached update immediately, then refresh in background
     sendUpdateToHelp(getCachedUpdate());
     checkForUpdate().then((fresh) => sendUpdateToHelp(fresh));
-    // Highlight current theme button
+    if (!helpWindow || helpWindow.isDestroyed()) return;
     const config = getConfig();
-    helpWindow?.webContents.executeJavaScript(
-      `document.querySelector('.theme-btn[data-theme="${config.theme || 'dark'}"]')?.classList.add('active')`
-    );
-
-    // Send project breakdown data
     const projects = getProjectBreakdown();
-    helpWindow?.webContents.executeJavaScript(
-      `window.postMessage(${JSON.stringify({ type: 'project-breakdown', projects })}, '*')`
-    );
+    const models = getModelBreakdown();
+    const settings = {
+      type: 'settings',
+      opacity: config.opacity ?? 1,
+      positionLocked: !!config.positionLocked,
+      autoStart: !!config.autoStart,
+    };
+    helpWindow.webContents.executeJavaScript(`
+      document.querySelector('.theme-btn[data-theme="${config.theme || 'dark'}"]')?.classList.add('active');
+      window.postMessage(${JSON.stringify({ type: 'project-breakdown', projects })}, '*');
+      window.postMessage(${JSON.stringify({ type: 'model-breakdown', models })}, '*');
+      window.postMessage(${JSON.stringify(settings)}, '*');
+    `);
   });
 
   // Listen for actions via page title
@@ -550,6 +642,23 @@ export function openHelpWindow(): void {
       });
     } else if (title === 'action:install') {
       if (installerPath) runInstaller(installerPath);
+    } else if (title.startsWith('opacity:')) {
+      const val = parseFloat(title.slice(8));
+      if (!isNaN(val)) {
+        const clamped = Math.max(0.2, Math.min(1, val));
+        saveConfig({ opacity: clamped });
+        getWindow()?.setOpacity(clamped);
+      }
+    } else if (title.startsWith('lock:')) {
+      const locked = title.slice(5) === '1';
+      saveConfig({ positionLocked: locked });
+      setPositionLocked(locked);
+    } else if (title.startsWith('autostart:')) {
+      const enabled = title.slice(10) === '1';
+      saveConfig({ autoStart: enabled });
+      if (app.isPackaged) {
+        app.setLoginItemSettings({ openAtLogin: enabled });
+      }
     }
   });
 

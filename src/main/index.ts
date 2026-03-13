@@ -1,6 +1,6 @@
 // src/main/index.ts
 import { app, globalShortcut } from 'electron';
-import { createWindow, showWidget, scheduleHide, setOnEdgeChange, setOnOffsetChange, startHoverDetection, stopHoverDetection, getWindow, resizeForPreview } from './window-manager';
+import { createWindow, showWidget, scheduleHide, setOnEdgeChange, setOnOffsetChange, startHoverDetection, stopHoverDetection, getWindow, resizeForPreview, setPositionLocked } from './window-manager';
 import { setupIpcHandlers } from './ipc-handlers';
 import { getActiveSession } from './services/session-watcher';
 import { loadConfig, saveConfig, getConfig } from './services/config-store';
@@ -18,7 +18,15 @@ let sessionIntervalId: ReturnType<typeof setInterval> | null = null;
 app.whenReady().then(() => {
   const config = loadConfig();
   loadActivityHistory();
+
+  // Auto-start on login
+  if (!isDev) {
+    app.setLoginItemSettings({ openAtLogin: !!config.autoStart });
+  }
+
   const win = createWindow(config.snapEdge, config.userOffset);
+  win.setOpacity(config.opacity ?? 1);
+  if (config.positionLocked) setPositionLocked(true);
 
   if (isDev) {
     win.loadURL('http://localhost:3000');

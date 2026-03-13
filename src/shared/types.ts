@@ -50,6 +50,9 @@ export interface PulseConfig {
   snapEdge: SnapEdge;
   userOffset?: number | null;
   theme?: ThemeName;
+  opacity?: number;       // 0.2 - 1.0
+  positionLocked?: boolean;
+  autoStart?: boolean;
 }
 
 export interface ActivitySnapshot {
