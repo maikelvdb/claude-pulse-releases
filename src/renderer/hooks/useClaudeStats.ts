@@ -18,6 +18,11 @@ declare global {
       onUpdateInfo: (callback: (info: UpdateInfo) => void) => () => void;
       onConfirmQuit: (callback: () => void) => () => void;
       quit: () => void;
+      downloadUpdate: () => void;
+      onUpdateProgress: (callback: (percent: number) => void) => () => void;
+      onUpdateReady: (callback: (path: string) => void) => () => void;
+      onUpdateError: (callback: (error: string) => void) => () => void;
+      installUpdate: (path: string) => void;
     };
   }
 }

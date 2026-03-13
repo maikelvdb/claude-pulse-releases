@@ -1,10 +1,17 @@
 // src/main/services/update-checker.ts
 import https from 'https';
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { app } from 'electron';
 
 export interface UpdateInfo {
   hasUpdate: boolean;
   currentVersion: string;
   latestVersion: string;
+  latestDownloadUrl: string;
+  latestDownloadSize: number;
   releaseNotes: string;
   releaseUrl: string;
 }
@@ -51,6 +58,8 @@ function fetchLatestRelease(): Promise<UpdateInfo> {
           hasUpdate: false,
           currentVersion,
           latestVersion: currentVersion,
+          latestDownloadUrl: '',
+          latestDownloadSize: 0,
           releaseNotes: '',
           releaseUrl: '',
         });
@@ -65,10 +74,14 @@ function fetchLatestRelease(): Promise<UpdateInfo> {
           const latestVersion = (release.tag_name || '').replace(/^v/, '');
           const hasUpdate = compareVersions(currentVersion, latestVersion);
 
+          const exeAsset = (release.assets || []).find((a: any) => a.name.endsWith('.exe'));
+
           resolve({
             hasUpdate,
             currentVersion,
             latestVersion,
+            latestDownloadUrl: exeAsset?.browser_download_url || '',
+            latestDownloadSize: exeAsset?.size || 0,
             releaseNotes: release.body || '',
             releaseUrl: release.html_url || `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases`,
           });
@@ -88,6 +101,8 @@ export async function checkForUpdate(): Promise<UpdateInfo> {
       hasUpdate: false,
       currentVersion: getCurrentVersion(),
       latestVersion: getCurrentVersion(),
+      latestDownloadUrl: '',
+      latestDownloadSize: 0,
       releaseNotes: '',
       releaseUrl: '',
     };
@@ -114,4 +129,61 @@ export function stopUpdateChecker(): void {
     clearInterval(checkIntervalId);
     checkIntervalId = null;
   }
+}
+
+function followRedirects(url: string, onResponse: (res: http.IncomingMessage) => void, onError: (err: Error) => void): void {
+  const client = url.startsWith('https') ? https : http;
+  client.get(url, { headers: { 'User-Agent': 'claude-pulse' } }, (res) => {
+    if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+      followRedirects(res.headers.location, onResponse, onError);
+    } else {
+      onResponse(res);
+    }
+  }).on('error', onError);
+}
+
+export function downloadUpdate(
+  downloadUrl: string,
+  onProgress: (percent: number) => void,
+): Promise<string> {
+  const fileName = path.basename(new URL(downloadUrl).pathname);
+  const destPath = path.join(os.tmpdir(), fileName);
+
+  return new Promise((resolve, reject) => {
+    followRedirects(downloadUrl, (res) => {
+      if (res.statusCode !== 200) {
+        reject(new Error(`Download failed: HTTP ${res.statusCode}`));
+        return;
+      }
+
+      const totalSize = parseInt(res.headers['content-length'] || '0', 10);
+      let downloaded = 0;
+      const file = fs.createWriteStream(destPath);
+
+      res.on('data', (chunk: Buffer) => {
+        downloaded += chunk.length;
+        if (totalSize > 0) {
+          onProgress(Math.round((downloaded / totalSize) * 100));
+        }
+      });
+
+      res.pipe(file);
+
+      file.on('finish', () => {
+        file.close();
+        resolve(destPath);
+      });
+
+      file.on('error', (err) => {
+        fs.unlink(destPath, () => {});
+        reject(err);
+      });
+    }, reject);
+  });
+}
+
+export function runInstaller(installerPath: string): void {
+  const { spawn } = require('child_process');
+  spawn(installerPath, [], { detached: true, stdio: 'ignore' }).unref();
+  app.quit();
 }

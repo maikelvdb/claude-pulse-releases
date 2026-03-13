@@ -20,6 +20,7 @@ interface StatusBarProps {
   hasUpdate: boolean;
   onToggleExpanded: () => void;
   onHelp: () => void;
+  onUpdate: () => void;
 }
 
 function ClaudeMascot({ isActive }: { isActive: boolean }) {
@@ -67,15 +68,15 @@ function getBorderRadius(edge: SnapEdge): string {
   }
 }
 
-function HelpButton({ onClick, hasUpdate }: { onClick: () => void; hasUpdate: boolean }) {
+function HelpButton({ onClick, onUpdate, hasUpdate }: { onClick: () => void; onUpdate: () => void; hasUpdate: boolean }) {
   return (
     <button
       onClick={(e) => {
         e.stopPropagation();
-        onClick();
+        hasUpdate ? onUpdate() : onClick();
       }}
       className="relative flex items-center justify-center w-7 h-7 rounded-md bg-claude-orange/20 border border-claude-orange/50 text-claude-orange hover:bg-claude-orange/40 hover:border-claude-orange transition-colors text-xs font-bold leading-none flex-shrink-0 cursor-pointer"
-      title={hasUpdate ? "Update available!" : "Help & shortcuts"}
+      title={hasUpdate ? "Update available! Click to update" : "Help & shortcuts"}
     >
       {hasUpdate && (
         <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-claude-orange animate-pulse" />
@@ -106,6 +107,7 @@ export function StatusBar({
   hasUpdate,
   onToggleExpanded,
   onHelp,
+  onUpdate,
 }: StatusBarProps) {
   const isVertical = snapEdge === "left" || snapEdge === "right";
   const orientation = isVertical ? "vertical" : "horizontal";
@@ -149,7 +151,7 @@ export function StatusBar({
               />
             </div>
             <div className="h-px w-8 bg-claude-border" />
-            <HelpButton onClick={onHelp} hasUpdate={hasUpdate} />
+            <HelpButton onClick={onHelp} onUpdate={onUpdate} hasUpdate={hasUpdate} />
           </div>
           {isExpanded && (
             <div className="flex-1">
@@ -200,7 +202,7 @@ export function StatusBar({
           />
         </div>
         <div className="w-px h-8 bg-claude-border" />
-        <HelpButton onClick={onHelp} hasUpdate={hasUpdate} />
+        <HelpButton onClick={onHelp} onUpdate={onUpdate} hasUpdate={hasUpdate} />
       </div>
       {isExpanded && (
         <div className="flex-1 border-t border-claude-border overflow-hidden">

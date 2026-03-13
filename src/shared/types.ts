@@ -59,6 +59,8 @@ export interface UpdateInfo {
   hasUpdate: boolean;
   currentVersion: string;
   latestVersion: string;
+  latestDownloadUrl: string;
+  latestDownloadSize: number;
   releaseNotes: string;
   releaseUrl: string;
 }

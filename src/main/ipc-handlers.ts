@@ -4,7 +4,7 @@ import { getTodayTokenUsage } from './services/stats-reader';
 import { getPlanInfo } from './services/credentials-reader';
 import { getCurrentModel, getUsageLimits } from './services/session-parser';
 import { recordSnapshot, getActivityHistory } from './services/activity-store';
-import { getCachedUpdate } from './services/update-checker';
+import { getCachedUpdate, downloadUpdate, runInstaller } from './services/update-checker';
 import { ClaudeUsageState } from '../shared/types';
 import { POLL_INTERVAL_SESSION, POLL_INTERVAL_STATS } from '../shared/constants';
 import { getSnapEdge, resizeForExpand } from './window-manager';
@@ -377,6 +377,26 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.on('widget:quit', () => {
     const { app } = require('electron');
     app.quit();
+  });
+
+  ipcMain.on('widget:download-update', () => {
+    const update = getCachedUpdate();
+    if (!update || !update.latestDownloadUrl) return;
+
+    downloadUpdate(
+      update.latestDownloadUrl,
+      (percent) => {
+        mainWindow.webContents.send('widget:update-progress', percent);
+      },
+    ).then((installerPath) => {
+      mainWindow.webContents.send('widget:update-ready', installerPath);
+    }).catch((err) => {
+      mainWindow.webContents.send('widget:update-error', err.message);
+    });
+  });
+
+  ipcMain.on('widget:install-update', (_event, installerPath: string) => {
+    runInstaller(installerPath);
   });
 
   // Fast poll for session changes (2s)

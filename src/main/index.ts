@@ -5,7 +5,7 @@ import { setupIpcHandlers } from './ipc-handlers';
 import { getActiveSession } from './services/session-watcher';
 import { loadConfig, saveConfig } from './services/config-store';
 import { loadActivityHistory, flushActivityHistory } from './services/activity-store';
-import { startUpdateChecker, stopUpdateChecker } from './services/update-checker';
+import { startUpdateChecker, stopUpdateChecker, getCachedUpdate } from './services/update-checker';
 import { POLL_INTERVAL_SESSION } from '../shared/constants';
 import path from 'path';
 
@@ -42,7 +42,14 @@ app.whenReady().then(() => {
     saveConfig({ snapEdge: edge });
   });
 
-  // Check for updates
+  // Check for updates — wait for page to load before sending first result
+  win.webContents.on('did-finish-load', () => {
+    const cached = getCachedUpdate();
+    if (cached) {
+      win.webContents.send('widget:update-info', cached);
+    }
+  });
+
   startUpdateChecker((info) => {
     win.webContents.send('widget:update-info', info);
   });

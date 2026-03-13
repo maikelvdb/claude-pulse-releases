@@ -41,4 +41,13 @@ contextBridge.exposeInMainWorld('claudePulse', {
   quit: () => {
     ipcRenderer.send('widget:quit');
   },
+  downloadUpdate: () => {
+    ipcRenderer.send('widget:download-update');
+  },
+  onUpdateProgress: makeListener<number>('widget:update-progress'),
+  onUpdateReady: makeListener<string>('widget:update-ready'),
+  onUpdateError: makeListener<string>('widget:update-error'),
+  installUpdate: (path: string) => {
+    ipcRenderer.send('widget:install-update', path);
+  },
 });
