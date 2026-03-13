@@ -24,12 +24,7 @@ let cachedUpdate: UpdateInfo | null = null;
 let checkIntervalId: ReturnType<typeof setInterval> | null = null;
 
 function getCurrentVersion(): string {
-  try {
-    const pkg = require('../../../package.json');
-    return pkg.version;
-  } catch {
-    return '0.0.0';
-  }
+  return app.getVersion();
 }
 
 function compareVersions(current: string, latest: string): boolean {
