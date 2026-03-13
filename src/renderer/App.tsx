@@ -57,9 +57,8 @@ export default function App() {
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
   const [confetti, setConfetti] = useState<'small' | 'medium' | 'large' | 'party' | null>(null);
-  const { playSessionStart, playSessionEnd, playWarning, playUrgent, playSparkle, playCelebration } = useSounds();
+  const { playWarning, playUrgent, playSparkle, playCelebration } = useSounds();
   const reachedTiers = useRef<Set<number>>(new Set());
-  const prevSessionActive = useRef(false);
   const prevHourlyUsed = useRef(0);
 
   const toggleMinimized = useCallback(() => {
@@ -114,13 +113,6 @@ export default function App() {
       }
     }
   }, [state.tokens]);
-
-  // Session sound effect
-  useEffect(() => {
-    if (state.session.isActive && !prevSessionActive.current) playSessionStart();
-    if (!state.session.isActive && prevSessionActive.current) playSessionEnd();
-    prevSessionActive.current = state.session.isActive;
-  }, [state.session.isActive]);
 
   // Rate limit sound effect
   useEffect(() => {

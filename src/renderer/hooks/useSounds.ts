@@ -34,16 +34,6 @@ export function useSounds() {
     osc.stop(ctx.currentTime + duration);
   }
 
-  const playSessionStart = useCallback(() => {
-    tone(523, 0.15); // C5
-    setTimeout(() => tone(659, 0.15), 150); // E5
-  }, [muted]);
-
-  const playSessionEnd = useCallback(() => {
-    tone(659, 0.15); // E5
-    setTimeout(() => tone(523, 0.15), 150); // C5
-  }, [muted]);
-
   const playWarning = useCallback(() => {
     tone(880, 0.2, 'triangle'); // A5
   }, [muted]);
@@ -66,5 +56,5 @@ export function useSounds() {
     setTimeout(() => tone(1047, 0.2), 300); // C6
   }, [muted]);
 
-  return { playSessionStart, playSessionEnd, playWarning, playUrgent, playSparkle, playCelebration, muted };
+  return { playWarning, playUrgent, playSparkle, playCelebration, muted };
 }
