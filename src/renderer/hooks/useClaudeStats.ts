@@ -24,6 +24,8 @@ declare global {
       onUpdateError: (callback: (error: string) => void) => () => void;
       installUpdate: (path: string) => void;
       onConversationPreview: (callback: (msg: string) => void) => () => void;
+      onSoundMuted: (callback: (muted: boolean) => void) => () => void;
+      onDailyRollups: (callback: (rollups: import('../../shared/types').DailyRollups) => void) => () => void;
       onThemeChange: (callback: (theme: ThemeName) => void) => () => void;
       setTheme: (theme: ThemeName) => void;
       requestTheme: () => void;
