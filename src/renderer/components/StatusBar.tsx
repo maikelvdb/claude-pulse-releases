@@ -22,7 +22,6 @@ interface StatusBarProps {
   conversationPreview: string;
   onToggleExpanded: () => void;
   onHelp: () => void;
-  onUpdate: () => void;
 }
 
 function ClaudeMascot({ isActive }: { isActive: boolean }) {
@@ -70,7 +69,7 @@ function getBorderRadius(edge: SnapEdge): string {
   }
 }
 
-function HelpButton({ onClick, onUpdate, hasUpdate }: { onClick: () => void; onUpdate: () => void; hasUpdate: boolean }) {
+function HelpButton({ onClick, hasUpdate }: { onClick: () => void; hasUpdate: boolean }) {
   return (
     <button
       onClick={(e) => {
@@ -110,7 +109,6 @@ export function StatusBar({
   conversationPreview,
   onToggleExpanded,
   onHelp,
-  onUpdate,
 }: StatusBarProps) {
   const isVertical = snapEdge === "left" || snapEdge === "right";
   const orientation = isVertical ? "vertical" : "horizontal";
@@ -160,7 +158,7 @@ export function StatusBar({
               </>
             )}
             <div className="h-px w-8 bg-claude-border" />
-            <HelpButton onClick={onHelp} onUpdate={onUpdate} hasUpdate={hasUpdate} />
+            <HelpButton onClick={onHelp} hasUpdate={hasUpdate} />
           </div>
           {isExpanded && (
             <div className="flex-1">
@@ -211,7 +209,7 @@ export function StatusBar({
           />
         </div>
         <div className="w-px h-8 bg-claude-border" />
-        <HelpButton onClick={onHelp} onUpdate={onUpdate} hasUpdate={hasUpdate} />
+        <HelpButton onClick={onHelp} hasUpdate={hasUpdate} />
       </div>
       {conversationPreview && state.session.isActive && !isExpanded && (
         <div className="border-t border-claude-border px-3 py-0.5 overflow-hidden">

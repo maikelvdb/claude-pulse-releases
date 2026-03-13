@@ -160,11 +160,29 @@ kbd {
 .release-notes-content a { color: #E87443; text-decoration: none; }
 .release-notes-content a:hover { text-decoration: underline; }
 .release-notes-content p { margin-bottom: 6px; }
+.update-btn {
+  display: inline-block; padding: 6px 16px; border-radius: 6px;
+  background: #E87443; color: #fff; font-size: 12px; font-weight: 500;
+  border: none; cursor: pointer; transition: background 0.2s;
+}
+.update-btn:hover { background: #d4632e; }
+.update-btn.retry { background: #2a2a3e; color: #c8c8d8; border: 1px solid #444; }
+.update-btn.retry:hover { background: #333346; }
 .update-link {
-  color: #E87443; text-decoration: none; font-size: 12px;
-  display: inline-block; margin-top: 8px;
+  color: #E87443; text-decoration: none; font-size: 11px;
+  display: inline-block; margin-left: 10px;
 }
 .update-link:hover { text-decoration: underline; }
+.progress-bar {
+  width: 100%; height: 6px; background: #2a2a3e; border-radius: 3px;
+  overflow: hidden; margin-top: 8px;
+}
+.progress-fill {
+  height: 100%; background: #E87443; border-radius: 3px;
+  transition: width 0.3s; width: 0%;
+}
+.progress-text { font-size: 10px; color: #888; margin-top: 4px; display: inline-block; }
+.error-text { font-size: 11px; color: #f87171; display: block; margin-bottom: 6px; }
 .current-version {
   color: #666; font-size: 11px; margin-top: 12px;
 }
@@ -304,7 +322,21 @@ kbd {
     <div id="update-banner" class="update-banner">
       <h3><span class="dot"></span> Update Available</h3>
       <div class="version" id="update-version"></div>
-      <a class="update-link" id="update-link" href="#" target="_blank">Download update &rarr;</a>
+      <div id="update-actions">
+        <button class="update-btn" id="download-btn">Download &amp; Install</button>
+        <a class="update-link" id="update-link" href="#" target="_blank">View on GitHub &rarr;</a>
+      </div>
+      <div id="update-progress" style="display:none">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <span class="progress-text" id="progress-text">0%</span>
+      </div>
+      <div id="update-ready" style="display:none">
+        <button class="update-btn" id="install-btn">Install Now &amp; Restart</button>
+      </div>
+      <div id="update-error" style="display:none">
+        <span class="error-text" id="error-text"></span>
+        <button class="update-btn retry" id="retry-btn">Retry</button>
+      </div>
     </div>
 
     <div class="section">
@@ -365,7 +397,37 @@ kbd {
 
         // Show pulsing dot on Release Notes tab
         document.getElementById('releases-dot').classList.add('visible');
+
+        // Wire download button
+        document.getElementById('download-btn').onclick = function() {
+          document.getElementById('update-actions').style.display = 'none';
+          document.getElementById('update-progress').style.display = 'block';
+          document.title = 'action:download';
+        };
+        document.getElementById('install-btn').onclick = function() {
+          document.title = 'action:install';
+        };
+        document.getElementById('retry-btn').onclick = function() {
+          document.getElementById('update-error').style.display = 'none';
+          document.getElementById('update-progress').style.display = 'block';
+          document.getElementById('progress-fill').style.width = '0%';
+          document.getElementById('progress-text').textContent = '0%';
+          document.title = 'action:download';
+        };
       }
+    }
+    if (e.data && e.data.type === 'update-progress') {
+      document.getElementById('progress-fill').style.width = e.data.percent + '%';
+      document.getElementById('progress-text').textContent = e.data.percent + '% downloading...';
+    }
+    if (e.data && e.data.type === 'update-ready') {
+      document.getElementById('update-progress').style.display = 'none';
+      document.getElementById('update-ready').style.display = 'block';
+    }
+    if (e.data && e.data.type === 'update-error') {
+      document.getElementById('update-progress').style.display = 'none';
+      document.getElementById('update-error').style.display = 'block';
+      document.getElementById('error-text').textContent = e.data.message;
     }
     if (e.data && e.data.type === 'project-breakdown') {
       var list = document.getElementById('project-list');
@@ -451,14 +513,14 @@ export function openHelpWindow(): void {
     );
   });
 
-  // Listen for theme changes via page title
+  // Listen for actions via page title
+  let installerPath = '';
   helpWindow.webContents.on('page-title-updated', (event, title) => {
     event.preventDefault();
     if (title.startsWith('theme:')) {
       const theme = title.slice(6) as ThemeName;
       if (['dark', 'light', 'sunset'].includes(theme)) {
         saveConfig({ theme });
-        // Notify the main widget renderer
         const allWindows = BrowserWindow.getAllWindows();
         allWindows.forEach((w: Electron.BrowserWindow) => {
           if (w !== helpWindow) {
@@ -466,6 +528,28 @@ export function openHelpWindow(): void {
           }
         });
       }
+    } else if (title === 'action:download') {
+      const update = getCachedUpdate();
+      if (!update || !update.latestDownloadUrl) return;
+      downloadUpdate(
+        update.latestDownloadUrl,
+        (percent) => {
+          helpWindow?.webContents.executeJavaScript(
+            `window.postMessage({type:'update-progress',percent:${percent}},'*')`
+          );
+        },
+      ).then((path) => {
+        installerPath = path;
+        helpWindow?.webContents.executeJavaScript(
+          `window.postMessage({type:'update-ready'},'*')`
+        );
+      }).catch((err) => {
+        helpWindow?.webContents.executeJavaScript(
+          `window.postMessage({type:'update-error',message:${JSON.stringify(err.message)}},'*')`
+        );
+      });
+    } else if (title === 'action:install') {
+      if (installerPath) runInstaller(installerPath);
     }
   });
 
