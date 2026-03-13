@@ -234,6 +234,11 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%; border: 2px solid;
 }
 
+.heatmap-cell {
+  width: 5px; height: 5px; border-radius: 1px;
+  background: #E87443;
+}
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
@@ -252,6 +257,7 @@ input[type="range"]::-webkit-slider-thumb {
   <button class="tab active" data-tab="general">General</button>
   <button class="tab" data-tab="shortcuts">Shortcuts</button>
   <button class="tab" data-tab="projects">Projects</button>
+  <button class="tab" data-tab="history">History</button>
   <button class="tab" data-tab="releases">
     Release Notes
     <span class="tab-dot" id="releases-dot"></span>
@@ -377,6 +383,15 @@ input[type="range"]::-webkit-slider-thumb {
     <div class="section">
       <h2>Token Usage by Model (24h)</h2>
       <div id="model-list"><p style="color:#666">Loading...</p></div>
+    </div>
+  </div>
+
+  <!-- History tab -->
+  <div class="tab-panel" id="tab-history">
+    <div class="section">
+      <div id="history-stats"></div>
+      <h2>Token Usage (52 weeks)</h2>
+      <div id="heatmap-grid" style="display:flex;gap:2px;flex-wrap:wrap;max-width:390px"></div>
     </div>
   </div>
 
@@ -527,6 +542,44 @@ input[type="range"]::-webkit-slider-thumb {
       document.getElementById('update-error').style.display = 'block';
       document.getElementById('error-text').textContent = e.data.message;
     }
+    if (e.data && e.data.type === 'daily-rollups') {
+      var rollups = e.data.rollups;
+      var grid = document.getElementById('heatmap-grid');
+      var today = new Date();
+      var cells = [];
+      var maxTotal = 0;
+      for (var i = 363; i >= 0; i--) {
+        var d = new Date(today);
+        d.setDate(d.getDate() - i);
+        var key = d.toISOString().slice(0, 10);
+        var r = rollups[key];
+        var total = r ? r.input + r.output : 0;
+        if (total > maxTotal) maxTotal = total;
+        cells.push({ date: key, total: total });
+      }
+      var html = '';
+      cells.forEach(function(c) {
+        var opacity = c.total === 0 ? 0.08 : Math.max(0.2, c.total / maxTotal);
+        html += '<div class="heatmap-cell" style="opacity:' + opacity + '" title="' + c.date + ': ' + fmtTokens(c.total) + ' tokens"></div>';
+      });
+      grid.innerHTML = html;
+
+      // Stats
+      var thisWeek = 0, thisMonth = 0, allTime = 0;
+      var weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
+      var monthAgo = new Date(today); monthAgo.setDate(monthAgo.getDate() - 30);
+      Object.keys(rollups).forEach(function(k) {
+        var t = rollups[k].input + rollups[k].output;
+        allTime += t;
+        if (k >= weekAgo.toISOString().slice(0, 10)) thisWeek += t;
+        if (k >= monthAgo.toISOString().slice(0, 10)) thisMonth += t;
+      });
+      document.getElementById('history-stats').innerHTML =
+        '<p style="font-size:12px;margin-bottom:12px;color:#888">' +
+        'This week: <strong style="color:#c8c8d8">' + fmtTokens(thisWeek) + '</strong> &middot; ' +
+        'This month: <strong style="color:#c8c8d8">' + fmtTokens(thisMonth) + '</strong> &middot; ' +
+        'All time: <strong style="color:#c8c8d8">' + fmtTokens(allTime) + '</strong></p>';
+    }
     if (e.data && (e.data.type === 'model-breakdown' || e.data.type === 'project-breakdown')) {
       var isModel = e.data.type === 'model-breakdown';
       var targetEl = document.getElementById(isModel ? 'model-list' : 'project-list');
@@ -605,6 +658,7 @@ export function openHelpWindow(): void {
     const config = getConfig();
     const projects = getProjectBreakdown();
     const models = getModelBreakdown();
+    const rollups = getDailyRollups();
     const settings = {
       type: 'settings',
       opacity: config.opacity ?? 1,
@@ -616,6 +670,7 @@ export function openHelpWindow(): void {
       document.querySelector('.theme-btn[data-theme="${config.theme || 'dark'}"]')?.classList.add('active');
       window.postMessage(${JSON.stringify({ type: 'project-breakdown', projects })}, '*');
       window.postMessage(${JSON.stringify({ type: 'model-breakdown', models })}, '*');
+      window.postMessage(${JSON.stringify({ type: 'daily-rollups', rollups })}, '*');
       window.postMessage(${JSON.stringify(settings)}, '*');
     `);
   });
