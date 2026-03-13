@@ -1,6 +1,6 @@
 // src/renderer/hooks/useClaudeStats.ts
 import { useState, useEffect, useCallback } from 'react';
-import { ClaudeUsageState, SnapEdge, ActivitySnapshot, UpdateInfo, ThemeName } from '../../shared/types';
+import { ClaudeUsageState, SnapEdge, ActivitySnapshot, UpdateInfo, ThemeName, DailyRollups } from '../../shared/types';
 
 declare global {
   interface Window {
@@ -48,6 +48,7 @@ export function useClaudeStats() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [theme, setThemeState] = useState<ThemeName>('dark');
   const [conversationPreview, setConversationPreview] = useState('');
+  const [dailyRollups, setDailyRollups] = useState<DailyRollups>({});
 
   useEffect(() => {
     const cleanups = [
@@ -55,6 +56,7 @@ export function useClaudeStats() {
       window.claudePulse.onActivityHistory((history) => setActivityHistory(history)),
       window.claudePulse.onSnapEdge((edge) => setSnapEdge(edge)),
       window.claudePulse.onConversationPreview((msg) => setConversationPreview(msg)),
+      window.claudePulse.onDailyRollups?.((r: DailyRollups) => setDailyRollups(r)),
       window.claudePulse.onThemeChange((t) => {
         setThemeState(t);
         document.documentElement.setAttribute('data-theme', t);
@@ -63,7 +65,7 @@ export function useClaudeStats() {
     window.claudePulse.requestUpdate();
     window.claudePulse.requestSnapEdge();
     window.claudePulse.requestTheme();
-    return () => cleanups.forEach(cleanup => cleanup());
+    return () => cleanups.forEach(cleanup => cleanup?.());
   }, []);
 
   const toggleExpanded = useCallback(() => {
@@ -78,5 +80,5 @@ export function useClaudeStats() {
     window.claudePulse.setTheme(t);
   }, []);
 
-  return { state, snapEdge, activityHistory, isExpanded, toggleExpanded, theme, setTheme, conversationPreview };
+  return { state, snapEdge, activityHistory, isExpanded, toggleExpanded, theme, setTheme, conversationPreview, dailyRollups };
 }

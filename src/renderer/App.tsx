@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StatusBar } from './components/StatusBar';
 import { useClaudeStats } from './hooks/useClaudeStats';
+import { useSounds } from './hooks/useSounds';
+import Confetti from './components/Confetti';
 import { SnapEdge } from '../shared/types';
 
 function getTranslateClass(edge: SnapEdge, visible: boolean): string {
@@ -49,11 +51,16 @@ function QuitConfirm({ onConfirm, onCancel }: { onConfirm: () => void; onCancel:
 }
 
 export default function App() {
-  const { state, snapEdge, activityHistory, isExpanded, toggleExpanded, conversationPreview } = useClaudeStats();
+  const { state, snapEdge, activityHistory, isExpanded, toggleExpanded, conversationPreview, dailyRollups } = useClaudeStats();
   const [visible, setVisible] = useState(true);
   const [minimized, setMinimized] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
+  const [confetti, setConfetti] = useState<'small' | 'medium' | 'large' | 'party' | null>(null);
+  const { playSessionStart, playSessionEnd, playWarning, playUrgent, playSparkle, playCelebration } = useSounds();
+  const reachedTiers = useRef<Set<number>>(new Set());
+  const prevSessionActive = useRef(false);
+  const prevHourlyUsed = useRef(0);
 
   const toggleMinimized = useCallback(() => {
     setMinimized(prev => !prev);
@@ -90,6 +97,50 @@ export default function App() {
       setHasUpdate(info.hasUpdate);
     });
     return cleanup;
+  }, []);
+
+  // Milestone detection
+  useEffect(() => {
+    const total = state.tokens.inputToday + state.tokens.outputToday;
+    const tiers: [number, 'small' | 'medium' | 'large' | 'party'][] = [
+      [500_000, 'small'], [1_000_000, 'medium'], [5_000_000, 'large'], [10_000_000, 'party'],
+    ];
+    for (const [threshold, intensity] of tiers) {
+      if (total >= threshold && !reachedTiers.current.has(threshold)) {
+        reachedTiers.current.add(threshold);
+        setConfetti(intensity);
+        if (intensity === 'small') playSparkle();
+        else playCelebration();
+      }
+    }
+  }, [state.tokens]);
+
+  // Session sound effect
+  useEffect(() => {
+    if (state.session.isActive && !prevSessionActive.current) playSessionStart();
+    if (!state.session.isActive && prevSessionActive.current) playSessionEnd();
+    prevSessionActive.current = state.session.isActive;
+  }, [state.session.isActive]);
+
+  // Rate limit sound effect
+  useEffect(() => {
+    const h = state.limits.hourlyUsed;
+    if (h >= 0.9 && prevHourlyUsed.current < 0.9) playUrgent();
+    else if (h >= 0.8 && prevHourlyUsed.current < 0.8) playWarning();
+    prevHourlyUsed.current = h;
+  }, [state.limits.hourlyUsed]);
+
+  // Night owl auto-detection
+  useEffect(() => {
+    const check = () => {
+      const h = new Date().getHours();
+      const isNight = h >= 0 && h < 5;
+      if (isNight) document.documentElement.setAttribute('data-nightowl', 'true');
+      else document.documentElement.removeAttribute('data-nightowl');
+    };
+    check();
+    const id = setInterval(check, 60000);
+    return () => clearInterval(id);
   }, []);
 
   // Konami code: ↑↑↓↓←→←→BA
@@ -140,6 +191,9 @@ export default function App() {
         isExpanded={isExpanded}
         hasUpdate={hasUpdate}
         conversationPreview={conversationPreview}
+        dailyRollups={dailyRollups}
+        confetti={confetti}
+        onConfettiDone={() => setConfetti(null)}
         onToggleExpanded={toggleExpanded}
         onHelp={openHelp}
       />
