@@ -12,7 +12,11 @@
   .logo { text-align: center; margin-bottom: 32px; }
   .logo img { width: 80px; height: 80px; border-radius: 16px; }
   h1 { text-align: center; color: var(--orange); font-size: 28px; margin-bottom: 4px; }
-  .subtitle { text-align: center; color: var(--dim); font-size: 14px; margin-bottom: 40px; }
+  .subtitle { text-align: center; color: var(--dim); font-size: 14px; margin-bottom: 12px; }
+  .vibe-badge { text-align: center; margin-bottom: 40px; }
+  .vibe-badge span { display: inline-block; background: var(--bg2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 14px; font-size: 11px; color: var(--dim); letter-spacing: 0.3px; }
+  .vibe-badge a { color: var(--orange); text-decoration: none; }
+  .vibe-badge a:hover { text-decoration: underline; }
   .download-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
   .download-card .info h3 { font-size: 16px; color: var(--text); margin-bottom: 4px; }
   .download-card .info p { font-size: 12px; color: var(--dim); }
@@ -42,6 +46,7 @@
   <div class="logo"><img src="icon-256.png" alt="Claude Pulse" /></div>
   <h1>Claude Pulse</h1>
   <p class="subtitle">Real-time Claude Code usage monitor for your desktop</p>
+  <div class="vibe-badge"><span>Entirely vibe-coded with <a href="https://docs.anthropic.com/en/docs/claude-code" target="_blank">Claude Code</a> &mdash; from first line to final build</span></div>
   <div id="latest-download"></div>
   <div class="features">
     <h2>Features</h2>
