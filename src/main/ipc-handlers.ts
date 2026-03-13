@@ -5,9 +5,12 @@ import { getPlanInfo } from './services/credentials-reader';
 import { getCurrentModel, getUsageLimits } from './services/session-parser';
 import { recordSnapshot, getActivityHistory } from './services/activity-store';
 import { getCachedUpdate, downloadUpdate, runInstaller } from './services/update-checker';
-import { ClaudeUsageState } from '../shared/types';
+import { checkRateLimits } from './services/rate-limit-notifier';
+import { getProjectBreakdown } from './services/project-scanner';
+import { ClaudeUsageState, ThemeName } from '../shared/types';
 import { POLL_INTERVAL_SESSION, POLL_INTERVAL_STATS } from '../shared/constants';
 import { getSnapEdge, resizeForExpand } from './window-manager';
+import { saveConfig, getConfig } from './services/config-store';
 
 let cachedState: ClaudeUsageState | null = null;
 let helpWindow: BrowserWindow | null = null;
@@ -158,6 +161,28 @@ kbd {
   color: #666; font-size: 11px; margin-top: 12px;
 }
 
+.project-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #333346; }
+.project-row:last-child { border-bottom: none; }
+.project-name { flex: 1; font-size: 12px; color: #c8c8d8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-tokens { font-size: 11px; color: #888; white-space: nowrap; }
+.project-bar-wrap { width: 60px; height: 6px; background: #2a2a3e; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+.project-bar { height: 100%; background: #E87443; border-radius: 3px; transition: width 0.3s; }
+.no-projects { color: #666; font-size: 12px; font-style: italic; }
+
+.theme-picker { display: flex; gap: 8px; }
+.theme-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 6px;
+  border: 1px solid #444; background: #2a2a3e; color: #c8c8d8;
+  font-size: 12px; cursor: pointer; transition: border-color 0.2s;
+}
+.theme-btn:hover { border-color: #E87443; }
+.theme-btn.active { border-color: #E87443; background: #E8744320; }
+.theme-swatch {
+  display: inline-block; width: 14px; height: 14px;
+  border-radius: 50%; border: 2px solid;
+}
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
@@ -175,6 +200,7 @@ kbd {
 <div class="tabs">
   <button class="tab active" data-tab="general">General</button>
   <button class="tab" data-tab="shortcuts">Shortcuts</button>
+  <button class="tab" data-tab="projects">Projects</button>
   <button class="tab" data-tab="releases">
     Release Notes
     <span class="tab-dot" id="releases-dot"></span>
@@ -209,6 +235,21 @@ kbd {
       <p>The widget shows automatically when a Claude session is detected and hides
       after inactivity. Move your mouse to the docked edge to reveal it.</p>
     </div>
+
+    <div class="section">
+      <h2>Theme</h2>
+      <div class="theme-picker">
+        <button class="theme-btn" data-theme="dark" title="Dark">
+          <span class="theme-swatch" style="background:#1e1e2e;border-color:#333346"></span> Dark
+        </button>
+        <button class="theme-btn" data-theme="light" title="Light">
+          <span class="theme-swatch" style="background:#f5f5f7;border-color:#c8c8d8"></span> Light
+        </button>
+        <button class="theme-btn" data-theme="sunset" title="Sunset">
+          <span class="theme-swatch" style="background:#2d1b2e;border-color:#4d3b4e"></span> Sunset
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Shortcuts tab -->
@@ -237,6 +278,14 @@ kbd {
         <tr><td><strong>? button</strong></td>
             <td>Open this help window</td></tr>
       </table>
+    </div>
+  </div>
+
+  <!-- Projects tab -->
+  <div class="tab-panel" id="tab-projects">
+    <div class="section">
+      <h2>Token Usage by Project (24h)</h2>
+      <div id="project-list"><p style="color:#666">Loading...</p></div>
     </div>
   </div>
 
@@ -269,6 +318,23 @@ kbd {
     });
   });
 
+  // Format token count
+  function fmtTokens(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return n.toString();
+  }
+
+  // Theme switching — communicate via page title
+  document.querySelectorAll('.theme-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var theme = btn.dataset.theme;
+      document.querySelectorAll('.theme-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.title = 'theme:' + theme;
+    });
+  });
+
   // Update info
   window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'update-info') {
@@ -291,12 +357,32 @@ kbd {
         document.getElementById('releases-dot').classList.add('visible');
       }
     }
+    if (e.data && e.data.type === 'project-breakdown') {
+      var list = document.getElementById('project-list');
+      var projects = e.data.projects;
+      if (!projects || projects.length === 0) {
+        list.innerHTML = '<p class="no-projects">No active projects in the last 24 hours.</p>';
+        return;
+      }
+      var maxTokens = projects[0].inputTokens + projects[0].outputTokens;
+      var html = '';
+      projects.forEach(function(p) {
+        var total = p.inputTokens + p.outputTokens;
+        var pct = maxTokens > 0 ? (total / maxTokens * 100) : 0;
+        html += '<div class="project-row">' +
+          '<span class="project-name" title="' + p.projectDir + '">' + p.projectDir + '</span>' +
+          '<div class="project-bar-wrap"><div class="project-bar" style="width:' + pct + '%"></div></div>' +
+          '<span class="project-tokens">' + fmtTokens(p.inputTokens) + ' in / ' + fmtTokens(p.outputTokens) + ' out</span>' +
+          '</div>';
+      });
+      list.innerHTML = html;
+    }
   });
 </script>
 </body>
 </html>`;
 
-function openHelpWindow(): void {
+export function openHelpWindow(): void {
   if (helpWindow && !helpWindow.isDestroyed()) {
     helpWindow.focus();
     return;
@@ -332,6 +418,35 @@ function openHelpWindow(): void {
       helpWindow?.webContents.executeJavaScript(
         `window.postMessage(${JSON.stringify({ type: 'update-info', ...update })}, '*')`
       );
+    }
+    // Highlight current theme button
+    const config = getConfig();
+    helpWindow?.webContents.executeJavaScript(
+      `document.querySelector('.theme-btn[data-theme="${config.theme || 'dark'}"]')?.classList.add('active')`
+    );
+
+    // Send project breakdown data
+    const projects = getProjectBreakdown();
+    helpWindow?.webContents.executeJavaScript(
+      `window.postMessage(${JSON.stringify({ type: 'project-breakdown', projects })}, '*')`
+    );
+  });
+
+  // Listen for theme changes via page title
+  helpWindow.webContents.on('page-title-updated', (event, title) => {
+    event.preventDefault();
+    if (title.startsWith('theme:')) {
+      const theme = title.slice(6) as ThemeName;
+      if (['dark', 'light', 'sunset'].includes(theme)) {
+        saveConfig({ theme });
+        // Notify the main widget renderer
+        const allWindows = BrowserWindow.getAllWindows();
+        allWindows.forEach((w: Electron.BrowserWindow) => {
+          if (w !== helpWindow) {
+            w.webContents.send('widget:theme-change', theme);
+          }
+        });
+      }
     }
   });
 
@@ -399,6 +514,16 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
     runInstaller(installerPath);
   });
 
+  ipcMain.on('widget:set-theme', (_event, theme: ThemeName) => {
+    saveConfig({ theme });
+    mainWindow.webContents.send('widget:theme-change', theme);
+  });
+
+  ipcMain.on('widget:request-theme', () => {
+    const config = getConfig();
+    mainWindow.webContents.send('widget:theme-change', config.theme || 'dark');
+  });
+
   // Fast poll for session changes (2s)
   setInterval(() => {
     const newSession = getActiveSession();
@@ -431,6 +556,9 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
       cachedState.currentModel !== newState.currentModel;
 
     cachedState = newState;
+
+    // Check rate limits for notifications
+    checkRateLimits(newState.limits.hourlyUsed, newState.limits.weeklyUsed);
 
     if (changed) {
       mainWindow.webContents.send('claude:usage-update', cachedState);

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { ClaudeUsageState, SnapEdge, ActivitySnapshot, UpdateInfo } from '../shared/types';
+import { ClaudeUsageState, SnapEdge, ActivitySnapshot, UpdateInfo, ThemeName } from '../shared/types';
 
 function makeListener<T>(channel: string) {
   return (callback: (value: T) => void) => {
@@ -49,5 +49,13 @@ contextBridge.exposeInMainWorld('claudePulse', {
   onUpdateError: makeListener<string>('widget:update-error'),
   installUpdate: (path: string) => {
     ipcRenderer.send('widget:install-update', path);
+  },
+  onConversationPreview: makeListener<string>('claude:conversation-preview'),
+  onThemeChange: makeListener<ThemeName>('widget:theme-change'),
+  setTheme: (theme: ThemeName) => {
+    ipcRenderer.send('widget:set-theme', theme);
+  },
+  requestTheme: () => {
+    ipcRenderer.send('widget:request-theme');
   },
 });

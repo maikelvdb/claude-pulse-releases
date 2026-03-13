@@ -5,6 +5,7 @@ import { TokenCounter } from "./TokenCounter";
 import { LimitBar } from "./LimitBar";
 import { ActivitySparkline } from "./ActivitySparkline";
 import { ActivityDetail } from "./ActivityDetail";
+import { ConversationPreview } from "./ConversationPreview";
 import {
   ClaudeUsageState,
   SnapEdge,
@@ -18,6 +19,7 @@ interface StatusBarProps {
   activityHistory: ActivitySnapshot[];
   isExpanded: boolean;
   hasUpdate: boolean;
+  conversationPreview: string;
   onToggleExpanded: () => void;
   onHelp: () => void;
   onUpdate: () => void;
@@ -105,6 +107,7 @@ export function StatusBar({
   activityHistory,
   isExpanded,
   hasUpdate,
+  conversationPreview,
   onToggleExpanded,
   onHelp,
   onUpdate,
@@ -150,6 +153,12 @@ export function StatusBar({
                 orientation="vertical"
               />
             </div>
+            {conversationPreview && state.session.isActive && (
+              <>
+                <div className="h-px w-8 bg-claude-border" />
+                <ConversationPreview text={conversationPreview} orientation="vertical" />
+              </>
+            )}
             <div className="h-px w-8 bg-claude-border" />
             <HelpButton onClick={onHelp} onUpdate={onUpdate} hasUpdate={hasUpdate} />
           </div>
@@ -204,6 +213,11 @@ export function StatusBar({
         <div className="w-px h-8 bg-claude-border" />
         <HelpButton onClick={onHelp} onUpdate={onUpdate} hasUpdate={hasUpdate} />
       </div>
+      {conversationPreview && state.session.isActive && !isExpanded && (
+        <div className="border-t border-claude-border px-3 py-0.5 overflow-hidden">
+          <ConversationPreview text={conversationPreview} orientation="horizontal" />
+        </div>
+      )}
       {isExpanded && (
         <div className="flex-1 border-t border-claude-border overflow-hidden">
           <ActivityDetail

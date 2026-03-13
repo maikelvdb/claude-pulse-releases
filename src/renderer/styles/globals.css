@@ -3,6 +3,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme: Dark (default) */
+:root, [data-theme="dark"] {
+  --claude-bg: #1e1e2e;
+  --claude-orange: #E87443;
+  --claude-text: #cccccc;
+  --claude-text-dim: #888888;
+  --claude-active: #4ade80;
+  --claude-idle: #6b7280;
+  --claude-bar-bg: #2a2a3e;
+  --claude-border: #333346;
+  --claude-input: #60a5fa;
+}
+
+/* Theme: Light */
+[data-theme="light"] {
+  --claude-bg: #f5f5f7;
+  --claude-orange: #d4632e;
+  --claude-text: #1a1a2e;
+  --claude-text-dim: #666666;
+  --claude-active: #22c55e;
+  --claude-idle: #9ca3af;
+  --claude-bar-bg: #e0e0e8;
+  --claude-border: #c8c8d8;
+  --claude-input: #3b82f6;
+}
+
+/* Theme: Sunset */
+[data-theme="sunset"] {
+  --claude-bg: #2d1b2e;
+  --claude-orange: #ff8c5a;
+  --claude-text: #e8d5c4;
+  --claude-text-dim: #a08878;
+  --claude-active: #86efac;
+  --claude-idle: #7c6f64;
+  --claude-bar-bg: #3d2b3e;
+  --claude-border: #4d3b4e;
+  --claude-input: #93c5fd;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -18,6 +57,22 @@ button, a, input, select, textarea,
 [role="button"],
 .no-drag {
   -webkit-app-region: no-drag;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.animate-marquee {
+  animation: marquee 15s linear infinite;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 body {

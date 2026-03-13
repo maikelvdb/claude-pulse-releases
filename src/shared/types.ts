@@ -44,8 +44,12 @@ export interface IpcChannels {
 
 export type SnapEdge = 'top' | 'bottom' | 'left' | 'right';
 
+export type ThemeName = 'dark' | 'light' | 'sunset';
+
 export interface PulseConfig {
   snapEdge: SnapEdge;
+  userOffset?: number | null;
+  theme?: ThemeName;
 }
 
 export interface ActivitySnapshot {

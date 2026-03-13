@@ -1,6 +1,6 @@
 // src/renderer/hooks/useClaudeStats.ts
 import { useState, useEffect, useCallback } from 'react';
-import { ClaudeUsageState, SnapEdge, ActivitySnapshot, UpdateInfo } from '../../shared/types';
+import { ClaudeUsageState, SnapEdge, ActivitySnapshot, UpdateInfo, ThemeName } from '../../shared/types';
 
 declare global {
   interface Window {
@@ -23,6 +23,10 @@ declare global {
       onUpdateReady: (callback: (path: string) => void) => () => void;
       onUpdateError: (callback: (error: string) => void) => () => void;
       installUpdate: (path: string) => void;
+      onConversationPreview: (callback: (msg: string) => void) => () => void;
+      onThemeChange: (callback: (theme: ThemeName) => void) => () => void;
+      setTheme: (theme: ThemeName) => void;
+      requestTheme: () => void;
     };
   }
 }
@@ -40,15 +44,23 @@ export function useClaudeStats() {
   const [snapEdge, setSnapEdge] = useState<SnapEdge>('top');
   const [activityHistory, setActivityHistory] = useState<ActivitySnapshot[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [theme, setThemeState] = useState<ThemeName>('dark');
+  const [conversationPreview, setConversationPreview] = useState('');
 
   useEffect(() => {
     const cleanups = [
       window.claudePulse.onUsageUpdate((newState) => setState(newState)),
       window.claudePulse.onActivityHistory((history) => setActivityHistory(history)),
       window.claudePulse.onSnapEdge((edge) => setSnapEdge(edge)),
+      window.claudePulse.onConversationPreview((msg) => setConversationPreview(msg)),
+      window.claudePulse.onThemeChange((t) => {
+        setThemeState(t);
+        document.documentElement.setAttribute('data-theme', t);
+      }),
     ];
     window.claudePulse.requestUpdate();
     window.claudePulse.requestSnapEdge();
+    window.claudePulse.requestTheme();
     return () => cleanups.forEach(cleanup => cleanup());
   }, []);
 
@@ -60,5 +72,9 @@ export function useClaudeStats() {
     });
   }, []);
 
-  return { state, snapEdge, activityHistory, isExpanded, toggleExpanded };
+  const setTheme = useCallback((t: ThemeName) => {
+    window.claudePulse.setTheme(t);
+  }, []);
+
+  return { state, snapEdge, activityHistory, isExpanded, toggleExpanded, theme, setTheme, conversationPreview };
 }

@@ -146,7 +146,7 @@ function QuitConfirm({ onConfirm, onCancel }: { onConfirm: () => void; onCancel:
 }
 
 export default function App() {
-  const { state, snapEdge, activityHistory, isExpanded, toggleExpanded } = useClaudeStats();
+  const { state, snapEdge, activityHistory, isExpanded, toggleExpanded, conversationPreview } = useClaudeStats();
   const [visible, setVisible] = useState(true);
   const [minimized, setMinimized] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
@@ -221,6 +221,7 @@ export default function App() {
         activityHistory={activityHistory}
         isExpanded={isExpanded}
         hasUpdate={hasUpdate}
+        conversationPreview={conversationPreview}
         onToggleExpanded={toggleExpanded}
         onHelp={openHelp}
         onUpdate={() => setShowUpdateDialog(true)}

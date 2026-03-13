@@ -1,11 +1,13 @@
 // src/main/index.ts
 import { app, globalShortcut } from 'electron';
-import { createWindow, showWidget, scheduleHide, setOnEdgeChange, startHoverDetection, stopHoverDetection } from './window-manager';
+import { createWindow, showWidget, scheduleHide, setOnEdgeChange, setOnOffsetChange, startHoverDetection, stopHoverDetection, getWindow } from './window-manager';
 import { setupIpcHandlers } from './ipc-handlers';
 import { getActiveSession } from './services/session-watcher';
 import { loadConfig, saveConfig } from './services/config-store';
 import { loadActivityHistory, flushActivityHistory } from './services/activity-store';
 import { startUpdateChecker, stopUpdateChecker, getCachedUpdate } from './services/update-checker';
+import { createTray, destroyTray } from './tray';
+import { startConversationTailer, stopConversationTailer } from './services/conversation-tailer';
 import { POLL_INTERVAL_SESSION } from '../shared/constants';
 import path from 'path';
 
@@ -16,7 +18,7 @@ let sessionIntervalId: ReturnType<typeof setInterval> | null = null;
 app.whenReady().then(() => {
   const config = loadConfig();
   loadActivityHistory();
-  const win = createWindow(config.snapEdge);
+  const win = createWindow(config.snapEdge, config.userOffset);
 
   if (isDev) {
     win.loadURL('http://localhost:3000');
@@ -26,6 +28,7 @@ app.whenReady().then(() => {
 
   setupIpcHandlers(win);
   startHoverDetection();
+  createTray();
 
   // Global shortcut: Ctrl+Shift+P to toggle minimize
   globalShortcut.register('CommandOrControl+Shift+P', () => {
@@ -37,9 +40,14 @@ app.whenReady().then(() => {
     win.webContents.send('widget:confirm-quit');
   });
 
-  // Persist edge changes
+  // Persist edge and offset changes
   setOnEdgeChange((edge) => {
     saveConfig({ snapEdge: edge });
+  });
+  let offsetSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  setOnOffsetChange((offset) => {
+    if (offsetSaveTimer) clearTimeout(offsetSaveTimer);
+    offsetSaveTimer = setTimeout(() => saveConfig({ userOffset: offset }), 500);
   });
 
   // Check for updates — wait for page to load before sending first result
@@ -52,6 +60,10 @@ app.whenReady().then(() => {
 
   startUpdateChecker((info) => {
     win.webContents.send('widget:update-info', info);
+  });
+
+  startConversationTailer((msg) => {
+    win.webContents.send('claude:conversation-preview', msg);
   });
 
   // Monitor for active sessions to auto-show
@@ -70,6 +82,8 @@ app.on('before-quit', () => {
   flushActivityHistory();
   stopHoverDetection();
   stopUpdateChecker();
+  stopConversationTailer();
+  destroyTray();
   if (sessionIntervalId !== null) {
     clearInterval(sessionIntervalId);
     sessionIntervalId = null;

@@ -20,6 +20,11 @@ let cachedBounds: Electron.Rectangle | null = null;
 
 // User-chosen offset along the snapped edge (null = centered)
 let userOffset: number | null = null;
+let onOffsetChange: ((offset: number | null) => void) | null = null;
+
+export function setOnOffsetChange(cb: (offset: number | null) => void): void {
+  onOffsetChange = cb;
+}
 
 export function setOnEdgeChange(cb: (edge: SnapEdge) => void): void {
   onEdgeChange = cb;
@@ -42,23 +47,32 @@ function getWindowSize(edge: SnapEdge): { width: number; height: number } {
   };
 }
 
+function getCurrentDisplay(): Electron.Display {
+  if (mainWindow) {
+    const bounds = mainWindow.getBounds();
+    const center = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+    return screen.getDisplayNearestPoint(center);
+  }
+  return screen.getPrimaryDisplay();
+}
+
 function getPosition(edge: SnapEdge): { x: number; y: number; width: number; height: number } {
-  const display = screen.getPrimaryDisplay();
-  const { width: sw, height: sh } = display.workAreaSize;
+  const display = getCurrentDisplay();
+  const wa = display.workArea; // absolute coordinates: { x, y, width, height }
   const { width, height } = getWindowSize(edge);
 
   let x: number, y: number;
 
   if (isHorizontalEdge(edge)) {
-    // Slide along X axis
-    const offset = userOffset ?? Math.round((sw - width) / 2);
-    x = clamp(offset, 0, sw - width);
-    y = edge === 'top' ? 0 : sh - height;
+    // Slide along X axis (offset is relative to workArea left)
+    const offset = userOffset ?? Math.round((wa.width - width) / 2);
+    x = wa.x + clamp(offset, 0, wa.width - width);
+    y = edge === 'top' ? wa.y : wa.y + wa.height - height;
   } else {
-    // Slide along Y axis
-    const offset = userOffset ?? Math.round((sh - height) / 2);
-    x = edge === 'left' ? 0 : sw - width;
-    y = clamp(offset, 0, sh - height);
+    // Slide along Y axis (offset is relative to workArea top)
+    const offset = userOffset ?? Math.round((wa.height - height) / 2);
+    x = edge === 'left' ? wa.x : wa.x + wa.width - width;
+    y = wa.y + clamp(offset, 0, wa.height - height);
   }
 
   return { x, y, width, height };
@@ -69,14 +83,14 @@ function clamp(val: number, min: number, max: number): number {
 }
 
 function nearestEdge(x: number, y: number): SnapEdge {
-  const display = screen.getPrimaryDisplay();
-  const { width: sw, height: sh } = display.workAreaSize;
+  const display = screen.getDisplayNearestPoint({ x, y });
+  const wa = display.workArea;
 
   const distances: [SnapEdge, number][] = [
-    ['top', y],
-    ['bottom', sh - y],
-    ['left', x],
-    ['right', sw - x],
+    ['top', y - wa.y],
+    ['bottom', (wa.y + wa.height) - y],
+    ['left', x - wa.x],
+    ['right', (wa.x + wa.width) - x],
   ];
 
   distances.sort((a, b) => a[1] - b[1]);
@@ -89,8 +103,9 @@ function applyBounds(pos: { x: number; y: number; width: number; height: number 
   cachedBounds = pos;
 }
 
-export function createWindow(initialEdge: SnapEdge): BrowserWindow {
+export function createWindow(initialEdge: SnapEdge, initialOffset?: number | null): BrowserWindow {
   currentEdge = initialEdge;
+  userOffset = initialOffset ?? null;
   const pos = getPosition(currentEdge);
 
   mainWindow = new BrowserWindow({
@@ -130,19 +145,21 @@ export function createWindow(initialEdge: SnapEdge): BrowserWindow {
       userOffset = null;
       snapTo(edge);
       onEdgeChange?.(edge);
+      onOffsetChange?.(null);
     } else {
-      // Same edge — save the user's position along the edge, clamped to screen
-      const display = screen.getPrimaryDisplay();
-      const { width: sw, height: sh } = display.workAreaSize;
+      // Same edge — save the user's position along the edge, relative to workArea origin
+      const display = screen.getDisplayNearestPoint({ x: centerX, y: centerY });
+      const wa = display.workArea;
 
       if (isHorizontalEdge(currentEdge)) {
-        userOffset = clamp(wx, 0, sw - ww);
+        userOffset = clamp(wx - wa.x, 0, wa.width - ww);
       } else {
-        userOffset = clamp(wy, 0, sh - wh);
+        userOffset = clamp(wy - wa.y, 0, wa.height - wh);
       }
 
       const pos = getPosition(currentEdge);
       applyBounds(pos);
+      onOffsetChange?.(userOffset);
     }
   });
 
@@ -210,25 +227,25 @@ export function startHoverDetection(): void {
 
     // Proximity detection — show widget when cursor is near the widget's actual position
     const margin = 10;
-    const display = screen.getPrimaryDisplay();
-    const { width: sw, height: sh } = display.workAreaSize;
+    const display = screen.getDisplayNearestPoint(point);
+    const wa = display.workArea;
 
     let inZone = false;
     switch (currentEdge) {
       case 'top':
-        inZone = point.y <= margin &&
+        inZone = point.y <= wa.y + margin &&
           point.x >= bounds.x - 50 && point.x <= bounds.x + bounds.width + 50;
         break;
       case 'bottom':
-        inZone = point.y >= sh - margin &&
+        inZone = point.y >= wa.y + wa.height - margin &&
           point.x >= bounds.x - 50 && point.x <= bounds.x + bounds.width + 50;
         break;
       case 'left':
-        inZone = point.x <= margin &&
+        inZone = point.x <= wa.x + margin &&
           point.y >= bounds.y - 50 && point.y <= bounds.y + bounds.height + 50;
         break;
       case 'right':
-        inZone = point.x >= sw - margin &&
+        inZone = point.x >= wa.x + wa.width - margin &&
           point.y >= bounds.y - 50 && point.y <= bounds.y + bounds.height + 50;
         break;
     }
