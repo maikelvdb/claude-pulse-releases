@@ -30,6 +30,7 @@ export interface ClaudeUsageState {
   tokens: TokenUsage;
   limits: UsageLimits;
   plan: PlanInfo;
+  sessionStartedAt: number | null;
 }
 
 export interface IpcChannels {
@@ -53,6 +54,7 @@ export interface PulseConfig {
   opacity?: number;       // 0.2 - 1.0
   positionLocked?: boolean;
   autoStart?: boolean;
+  soundMuted?: boolean;
 }
 
 export interface ActivitySnapshot {
@@ -60,6 +62,15 @@ export interface ActivitySnapshot {
   input: number;    // cumulative input tokens today
   output: number;   // cumulative output tokens today
   active: boolean;  // session active at this moment
+}
+
+export interface DailyRollup {
+  input: number;
+  output: number;
+}
+
+export interface DailyRollups {
+  [date: string]: DailyRollup;
 }
 
 export interface UpdateInfo {
