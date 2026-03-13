@@ -6,10 +6,14 @@ import { LimitBar } from "./LimitBar";
 import { ActivitySparkline } from "./ActivitySparkline";
 import { ActivityDetail } from "./ActivityDetail";
 import { ConversationPreview } from "./ConversationPreview";
+import SessionTimer from "./SessionTimer";
+import MiniHeatmap from "./MiniHeatmap";
+import Confetti from "./Confetti";
 import {
   ClaudeUsageState,
   SnapEdge,
   ActivitySnapshot,
+  DailyRollups,
 } from "../../shared/types";
 import clawdVideo from "../assets/clawd-laptop.webm";
 
@@ -20,6 +24,9 @@ interface StatusBarProps {
   isExpanded: boolean;
   hasUpdate: boolean;
   conversationPreview: string;
+  dailyRollups: DailyRollups;
+  confetti: 'small' | 'medium' | 'large' | 'party' | null;
+  onConfettiDone: () => void;
   onToggleExpanded: () => void;
   onHelp: () => void;
 }
@@ -107,6 +114,9 @@ export function StatusBar({
   isExpanded,
   hasUpdate,
   conversationPreview,
+  dailyRollups,
+  confetti,
+  onConfettiDone,
   onToggleExpanded,
   onHelp,
 }: StatusBarProps) {
@@ -117,8 +127,9 @@ export function StatusBar({
   if (isVertical) {
     return (
       <div
-        className={`flex flex-col items-center gap-2 px-2 py-3 bg-claude-bg border border-claude-border ${radius} shadow-lg ${isExpanded ? "w-[260px]" : "w-[80px]"} transition-all duration-300`}
+        className={`relative flex flex-col items-center gap-2 px-2 py-3 bg-claude-bg border border-claude-border ${radius} shadow-lg ${isExpanded ? "w-[260px]" : "w-[80px]"} transition-all duration-300`}
       >
+        {confetti && <Confetti intensity={confetti} onDone={onConfettiDone} />}
         <div
           className={`flex ${isExpanded ? "flex-row items-start gap-3 w-full" : "flex-col items-center gap-2"}`}
         >
@@ -132,6 +143,7 @@ export function StatusBar({
             />
             <div className="h-px w-8 bg-claude-border" />
             <TokenCounter tokens={state.tokens} orientation="vertical" />
+            <SessionTimer sessionStartedAt={state.sessionStartedAt} orientation="vertical" />
             <div className="h-px w-8 bg-claude-border" />
             <ActivitySparkline
               history={activityHistory}
@@ -167,6 +179,7 @@ export function StatusBar({
                 orientation="vertical"
                 onClick={onToggleExpanded}
               />
+              <MiniHeatmap rollups={dailyRollups} orientation="vertical" onClickHistory={onHelp} />
             </div>
           )}
         </div>
@@ -176,9 +189,9 @@ export function StatusBar({
 
   return (
     <div
-      className={`flex flex-col bg-claude-bg border border-claude-border ${radius} shadow-lg ${isExpanded ? "h-[200px]" : "h-[68px]"} transition-all duration-300`}
+      className={`relative flex flex-col bg-claude-bg border border-claude-border ${radius} shadow-lg ${isExpanded ? "h-[200px]" : "h-[68px]"} transition-all duration-300`}
     >
-
+      {confetti && <Confetti intensity={confetti} onDone={onConfettiDone} />}
       <div className="flex items-center gap-2 px-2 pt-0 pb-1 h-[68px] shrink-0">
         <ClaudeMascot isActive={state.session.isActive} />
         <div className="w-px h-8 bg-claude-border" />
@@ -189,6 +202,7 @@ export function StatusBar({
         />
         <div className="w-px h-8 bg-claude-border" />
         <TokenCounter tokens={state.tokens} orientation="horizontal" />
+        <SessionTimer sessionStartedAt={state.sessionStartedAt} orientation="horizontal" />
         <div className="w-px h-8 bg-claude-border" />
         <ActivitySparkline
           history={activityHistory}
@@ -223,6 +237,7 @@ export function StatusBar({
             orientation="horizontal"
             onClick={onToggleExpanded}
           />
+          <MiniHeatmap rollups={dailyRollups} orientation="horizontal" onClickHistory={onHelp} />
         </div>
       )}
     </div>
