@@ -1,4 +1,5 @@
 import { Notification } from 'electron';
+import { log } from './logger';
 
 let lastHourlyThreshold = 0;
 let lastWeeklyThreshold = 0;
@@ -18,6 +19,7 @@ export function checkRateLimits(hourlyUsed: number, weeklyUsed: number): void {
 
   // Only notify when crossing a threshold upward (not on every poll)
   if (hourlyLevel > lastHourlyThreshold) {
+    log('rate-limit', 'warn', 'Hourly limit at ' + hourlyLevel + '%');
     new Notification({
       title: 'Claude Pulse — Hourly Limit Warning',
       body: `You've used ${hourlyLevel}% of your hourly rate limit.`,
@@ -26,6 +28,7 @@ export function checkRateLimits(hourlyUsed: number, weeklyUsed: number): void {
   }
 
   if (weeklyLevel > lastWeeklyThreshold) {
+    log('rate-limit', 'warn', 'Weekly limit at ' + weeklyLevel + '%');
     new Notification({
       title: 'Claude Pulse — Weekly Limit Warning',
       body: `You've used ${weeklyLevel}% of your weekly rate limit.`,

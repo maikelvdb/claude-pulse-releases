@@ -10,6 +10,7 @@ import { createTray, destroyTray } from './tray';
 import { startConversationTailer, stopConversationTailer } from './services/conversation-tailer';
 import { startCliStatusPoller, stopCliStatusPoller } from './services/cli-status-poller';
 import { POLL_INTERVAL_SESSION } from '../shared/constants';
+import { log } from './services/logger';
 import path from 'path';
 
 const isDev = !app.isPackaged;
@@ -17,6 +18,7 @@ const isDev = !app.isPackaged;
 let sessionIntervalId: ReturnType<typeof setInterval> | null = null;
 
 app.whenReady().then(() => {
+  log('app', 'info', 'Claude Pulse starting (v' + app.getVersion() + ', ' + (isDev ? 'dev' : 'prod') + ')');
   const config = loadConfig();
   loadActivityHistory();
 

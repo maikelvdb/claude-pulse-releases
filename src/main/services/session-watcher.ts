@@ -2,8 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { IDE_LOCK_DIR, PROJECTS_DIR } from '../../shared/constants';
 import { SessionInfo } from '../../shared/types';
+import { log } from './logger';
 
 const ACTIVE_THRESHOLD = 30000; // 30s — JSONL modified within this is considered active
+let lastLoggedActive: boolean | null = null;
 
 function isPidAlive(pid: number): boolean {
   try {
@@ -116,10 +118,18 @@ export function getActiveSession(): SessionInfo {
 
   if (firstIde) {
     firstIde.sessionCount = sessionCount;
+    if (lastLoggedActive !== true) {
+      log('session', 'info', 'Session active via ' + firstIde.source + (firstIde.ideName ? ' (' + firstIde.ideName + ')' : '') + ' — ' + sessionCount + ' session(s)');
+      lastLoggedActive = true;
+    }
     return firstIde;
   }
 
   if (isActive) {
+    if (lastLoggedActive !== true) {
+      log('session', 'info', 'Session active via cli — ' + sessionCount + ' session(s)');
+      lastLoggedActive = true;
+    }
     return {
       isActive: true,
       pid: null,
@@ -130,5 +140,9 @@ export function getActiveSession(): SessionInfo {
     };
   }
 
+  if (lastLoggedActive !== false) {
+    log('session', 'info', 'No active sessions');
+    lastLoggedActive = false;
+  }
   return noSession;
 }

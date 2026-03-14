@@ -1,6 +1,7 @@
 import * as pty from '@homebridge/node-pty-prebuilt-multiarch';
 import path from 'path';
 import os from 'os';
+import { log } from './logger';
 
 export interface CliStatus {
   sessionPercent: number;   // 0-100
@@ -52,8 +53,11 @@ function pollOnce(): Promise<CliStatus | null> {
       resolve(result);
     };
 
+    log('cli-poller', 'info', 'Polling CLI for status...');
+
     const timeout = setTimeout(() => {
       try { term.kill(); } catch {}
+      log('cli-poller', 'warn', 'Poll timed out after ' + (SPAWN_TIMEOUT / 1000) + 's');
       done(null);
     }, SPAWN_TIMEOUT);
 
@@ -73,6 +77,7 @@ function pollOnce(): Promise<CliStatus | null> {
       });
     } catch (err) {
       clearTimeout(timeout);
+      log('cli-poller', 'error', 'Failed to spawn PTY: ' + (err instanceof Error ? err.message : String(err)));
       done(null);
       return;
     }
@@ -133,11 +138,14 @@ export function getCachedCliStatus(): CliStatus | null {
 }
 
 export function startCliStatusPoller(onUpdate?: (status: CliStatus) => void): void {
+  log('cli-poller', 'info', 'Starting CLI status poller (interval: ' + (POLL_INTERVAL / 1000) + 's)');
+
   // Initial poll after short delay
   setTimeout(async () => {
     const result = await pollOnce();
     if (result) {
       cachedStatus = result;
+      log('cli-poller', 'info', 'Status: session ' + result.sessionPercent + '% | weekly ' + result.weeklyPercent + '%');
       onUpdate?.(result);
     }
   }, 5000);
@@ -146,6 +154,7 @@ export function startCliStatusPoller(onUpdate?: (status: CliStatus) => void): vo
     const result = await pollOnce();
     if (result) {
       cachedStatus = result;
+      log('cli-poller', 'info', 'Status: session ' + result.sessionPercent + '% | weekly ' + result.weeklyPercent + '%');
       onUpdate?.(result);
     }
   }, POLL_INTERVAL);

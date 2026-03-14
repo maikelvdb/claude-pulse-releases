@@ -8,6 +8,7 @@ import { recordSnapshot, getActivityHistory, getDailyRollups } from './services/
 import { getCachedUpdate, checkForUpdate, downloadUpdate, runInstaller } from './services/update-checker';
 import { checkRateLimits } from './services/rate-limit-notifier';
 import { getCachedCliStatus } from './services/cli-status-poller';
+import { log, getLogBuffer, clearLogBuffer, onLogEntry, LogEntry } from './services/logger';
 import { getProjectBreakdown } from './services/project-scanner';
 import { getModelBreakdown } from './services/model-breakdown';
 import { ClaudeUsageState, ThemeName } from '../shared/types';
@@ -240,6 +241,39 @@ input[type="range"]::-webkit-slider-thumb {
   background: #E87443;
 }
 
+/* Console tab */
+#tab-console { overflow: hidden; display: none; }
+#tab-console.active { display: flex; }
+.console-wrap {
+  display: flex; flex-direction: column; flex: 1; min-height: 0;
+  width: 100%;
+}
+.console-toolbar {
+  display: flex; justify-content: flex-end; padding: 0 0 8px;
+  flex-shrink: 0;
+}
+.console-clear-btn {
+  background: #2a2a3e; border: 1px solid #444; color: #888;
+  font-size: 11px; padding: 2px 10px; border-radius: 4px; cursor: pointer;
+}
+.console-clear-btn:hover { color: #E87443; border-color: #E87443; }
+.console-output {
+  flex: 1; overflow-y: auto; background: #0d0d1a; border-radius: 6px;
+  padding: 10px 12px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 11px; line-height: 1.7; min-height: 0;
+}
+.console-output::-webkit-scrollbar { width: 6px; }
+.console-output::-webkit-scrollbar-track { background: transparent; }
+.console-output::-webkit-scrollbar-thumb { background: #333346; border-radius: 3px; }
+.console-output::-webkit-scrollbar-thumb:hover { background: #444; }
+.log-line { white-space: pre-wrap; word-break: break-all; }
+.log-line .ts { color: #555; }
+.log-line .src { color: #6a9fb5; }
+.log-line.info .msg { color: #b0b0c0; }
+.log-line.warn .ts, .log-line.warn .src, .log-line.warn .msg { color: #e2b340; }
+.log-line.error .ts, .log-line.error .src, .log-line.error .msg { color: #f87171; }
+.console-empty { color: #555; font-style: italic; font-size: 12px; }
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
@@ -263,6 +297,7 @@ input[type="range"]::-webkit-slider-thumb {
     Release Notes
     <span class="tab-dot" id="releases-dot"></span>
   </button>
+  <button class="tab" data-tab="console">Console</button>
 </div>
 
 <div class="tab-panels">
@@ -426,6 +461,18 @@ input[type="range"]::-webkit-slider-thumb {
     <p class="current-version" id="current-version"></p>
   </div>
 
+  <!-- Console tab -->
+  <div class="tab-panel" id="tab-console">
+    <div class="console-wrap">
+      <div class="console-toolbar">
+        <button class="console-clear-btn" id="console-clear">Clear</button>
+      </div>
+      <div class="console-output" id="console-output">
+        <div class="console-empty">Waiting for log entries...</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -482,6 +529,33 @@ input[type="range"]::-webkit-slider-thumb {
   document.getElementById('mute-toggle').addEventListener('click', function() {
     this.classList.toggle('on');
     document.title = 'soundmute:' + (this.classList.contains('on') ? '1' : '0');
+  });
+
+  // Console log handling
+  var consoleOutput = document.getElementById('console-output');
+  var consoleHasEntries = false;
+
+  function padTwo(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function appendLogEntry(entry) {
+    if (!consoleHasEntries) {
+      consoleOutput.innerHTML = '';
+      consoleHasEntries = true;
+    }
+    var d = new Date(entry.timestamp);
+    var ts = padTwo(d.getHours()) + ':' + padTwo(d.getMinutes()) + ':' + padTwo(d.getSeconds());
+    var div = document.createElement('div');
+    div.className = 'log-line ' + entry.level;
+    div.innerHTML = '<span class="ts">' + ts + '</span> <span class="src">[' + entry.source + ']</span> <span class="msg">' + entry.message.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+    consoleOutput.appendChild(div);
+    // Auto-scroll to bottom
+    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+  }
+
+  document.getElementById('console-clear').addEventListener('click', function() {
+    consoleOutput.innerHTML = '<div class="console-empty">Console cleared.</div>';
+    consoleHasEntries = false;
+    document.title = 'action:clear-logs';
   });
 
   // Update info
@@ -581,6 +655,15 @@ input[type="range"]::-webkit-slider-thumb {
         'This month: <strong style="color:#c8c8d8">' + fmtTokens(thisMonth) + '</strong> &middot; ' +
         'All time: <strong style="color:#c8c8d8">' + fmtTokens(allTime) + '</strong></p>';
     }
+    if (e.data && e.data.type === 'log-buffer') {
+      var entries = e.data.entries;
+      for (var i = 0; i < entries.length; i++) {
+        appendLogEntry(entries[i]);
+      }
+    }
+    if (e.data && e.data.type === 'log-entry') {
+      appendLogEntry(e.data.entry);
+    }
     if (e.data && (e.data.type === 'model-breakdown' || e.data.type === 'project-breakdown')) {
       var isModel = e.data.type === 'model-breakdown';
       var targetEl = document.getElementById(isModel ? 'model-list' : 'project-list');
@@ -674,6 +757,22 @@ export function openHelpWindow(): void {
       window.postMessage(${JSON.stringify({ type: 'daily-rollups', rollups })}, '*');
       window.postMessage(${JSON.stringify(settings)}, '*');
     `);
+
+    // Send buffered log entries
+    const logBuffer = getLogBuffer();
+    if (logBuffer.length > 0) {
+      helpWindow.webContents.executeJavaScript(
+        `window.postMessage(${JSON.stringify({ type: 'log-buffer', entries: logBuffer })}, '*')`
+      );
+    }
+  });
+
+  // Stream new log entries to help window
+  const removeLogListener = onLogEntry((entry: LogEntry) => {
+    if (!helpWindow || helpWindow.isDestroyed()) return;
+    helpWindow.webContents.executeJavaScript(
+      `window.postMessage(${JSON.stringify({ type: 'log-entry', entry })}, '*')`
+    );
   });
 
   // Listen for actions via page title
@@ -739,10 +838,13 @@ export function openHelpWindow(): void {
           w.webContents.send('widget:sound-muted', muted);
         }
       });
+    } else if (title === 'action:clear-logs') {
+      clearLogBuffer();
     }
   });
 
   helpWindow.on('closed', () => {
+    removeLogListener();
     helpWindow = null;
   });
 }
@@ -764,6 +866,7 @@ function buildState(): ClaudeUsageState {
 
   // Override limits with CLI data when available and fresh (< 60s old)
   if (cliStatus && Date.now() - cliStatus.lastUpdated < 60_000) {
+    log('state', 'info', 'Using CLI status override (session: ' + cliStatus.sessionPercent + '%, weekly: ' + cliStatus.weeklyPercent + '%)');
     limits = {
       ...limits,
       hourlyUsed: cliStatus.sessionPercent / 100,

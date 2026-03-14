@@ -1,6 +1,7 @@
 import fs from 'fs';
 import { TokenUsage } from '../../shared/types';
 import { findTodayJsonlFiles } from './session-file';
+import { log } from './logger';
 
 interface TokenEntry {
   timestamp: number;
@@ -135,8 +136,10 @@ export function getTodayTokenUsage(): TokenUsage {
       }
     }
 
+    log('stats', 'info', 'Tokens today: ' + totalInput + ' in / ' + totalOutput + ' out / ' + totalCacheRead + ' cache (' + todayFiles.length + ' files)');
     return { inputToday: totalInput, outputToday: totalOutput, cacheReadToday: totalCacheRead, inputLastHour, outputLastHour };
-  } catch {
+  } catch (err) {
+    log('stats', 'error', 'Failed to read token usage: ' + (err instanceof Error ? err.message : String(err)));
     return empty;
   }
 }

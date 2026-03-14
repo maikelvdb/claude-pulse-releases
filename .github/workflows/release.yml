@@ -1,0 +1,74 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate version matches tag
+        shell: bash
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match package.json version ($PKG_VERSION)"
+            exit 1
+          fi
+          echo "VERSION=$TAG_VERSION" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build & package
+        run: npm run package
+
+      - name: Find installer
+        shell: bash
+        run: |
+          EXE=$(find release -name "*.exe" -type f | head -1)
+          if [ -z "$EXE" ]; then
+            echo "::error::No .exe found in release directory"
+            exit 1
+          fi
+          echo "INSTALLER_PATH=$EXE" >> $GITHUB_ENV
+          echo "INSTALLER_NAME=$(basename $EXE)" >> $GITHUB_ENV
+          echo "Found installer: $EXE"
+
+      - name: Create source repo release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ env.VERSION }}
+          generate_release_notes: true
+          files: ${{ env.INSTALLER_PATH }}
+
+      - name: Mirror release to public repo
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          # Get the release notes from the source release we just created
+          RELEASE_NOTES=$(gh release view "$GITHUB_REF_NAME" --json body -q .body)
+
+          # Create release on the public repo
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "maikelvdb/claude-pulse-releases" \
+            --title "v${VERSION}" \
+            --notes "$RELEASE_NOTES" \
+            "$INSTALLER_PATH"
