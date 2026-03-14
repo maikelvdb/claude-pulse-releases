@@ -1,4 +1,4 @@
-import * as pty from '@homebridge/node-pty-prebuilt-multiarch';
+import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import os from 'os';
 import { log } from './logger';
@@ -41,6 +41,10 @@ function parseStatusOutput(output: string): CliStatus | null {
   };
 }
 
+function stripAnsi(s: string): string {
+  return s.replace(/\x1b\[[0-9;]*[a-zA-Z]|\x1b[>\?][0-9;]*[a-zA-Z]/g, '');
+}
+
 function pollOnce(): Promise<CliStatus | null> {
   return new Promise((resolve) => {
     let output = '';
@@ -55,21 +59,12 @@ function pollOnce(): Promise<CliStatus | null> {
 
     log('cli-poller', 'info', 'Polling CLI for status...');
 
-    const timeout = setTimeout(() => {
-      try { term.kill(); } catch {}
-      const truncated = output.length > 200 ? output.slice(-200) : output;
-      log('cli-poller', 'warn', 'Poll timed out after ' + (SPAWN_TIMEOUT / 1000) + 's — last output: ' + truncated.replace(/[\r\n]+/g, ' ').trim());
-      done(null);
-    }, SPAWN_TIMEOUT);
-
-    let term: pty.IPty;
+    let proc: ChildProcess;
     try {
       const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/bash';
-      term = pty.spawn(shell, [], {
-        name: 'xterm',
-        cols: 120,
-        rows: 30,
+      proc = spawn(shell, [], {
         cwd: os.homedir(),
+        stdio: 'pipe',
         env: {
           ...process.env,
           CLAUDECODE: '',
@@ -77,18 +72,24 @@ function pollOnce(): Promise<CliStatus | null> {
         },
       });
     } catch (err) {
-      clearTimeout(timeout);
-      log('cli-poller', 'error', 'Failed to spawn PTY: ' + (err instanceof Error ? err.message : String(err)));
+      log('cli-poller', 'error', 'Failed to spawn shell: ' + (err instanceof Error ? err.message : String(err)));
       done(null);
       return;
     }
+
+    const timeout = setTimeout(() => {
+      try { proc.kill(); } catch {}
+      const truncated = output.length > 200 ? output.slice(-200) : output;
+      log('cli-poller', 'warn', 'Poll timed out after ' + (SPAWN_TIMEOUT / 1000) + 's — last output: ' + truncated.replace(/[\r\n]+/g, ' ').trim());
+      done(null);
+    }, SPAWN_TIMEOUT);
 
     let trustHandled = false;
     let statusSent = false;
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
-    function stripAnsi(s: string): string {
-      return s.replace(/\x1b\[[0-9;]*[a-zA-Z]|\x1b[>\?][0-9;]*[a-zA-Z]/g, '');
+    function writeToProc(text: string) {
+      try { proc.stdin?.write(text); } catch {}
     }
 
     // When output stops for 1.5s after launch, CLI is ready for /status
@@ -99,12 +100,12 @@ function pollOnce(): Promise<CliStatus | null> {
         if (!statusSent) {
           statusSent = true;
           log('cli-poller', 'info', 'CLI appears ready, sending /status');
-          try { term.write('/status\r'); } catch {}
+          writeToProc('/status\n');
         }
       }, 1500);
     }
 
-    term.onData((data: string) => {
+    function handleData(data: string) {
       output += data;
 
       // Reset idle timer on each chunk of output
@@ -114,8 +115,8 @@ function pollOnce(): Promise<CliStatus | null> {
       if (!trustHandled && /trust.{0,5}this.{0,5}folder/i.test(stripAnsi(output))) {
         trustHandled = true;
         log('cli-poller', 'info', 'Trust prompt detected, confirming...');
-        setTimeout(() => { try { term.write('\r'); } catch {} }, 500);
-        setTimeout(() => { try { term.write('\r'); } catch {} }, 1500);
+        setTimeout(() => writeToProc('\n'), 500);
+        setTimeout(() => writeToProc('\n'), 1500);
       }
 
       // Once we see the second "% used", we have what we need
@@ -126,9 +127,9 @@ function pollOnce(): Promise<CliStatus | null> {
           clearTimeout(timeout);
           const parsed = parseStatusOutput(output);
           // Send /exit to cleanly close
-          try { term.write('/exit\r'); } catch {}
+          writeToProc('/exit\n');
           setTimeout(() => {
-            try { term.kill(); } catch {}
+            try { proc.kill(); } catch {}
             if (!exitHandled) {
               exitHandled = true;
               done(parsed);
@@ -136,9 +137,12 @@ function pollOnce(): Promise<CliStatus | null> {
           }, 2000);
         }, 500);
       }
-    });
+    }
 
-    term.onExit(() => {
+    proc.stdout?.on('data', (data: Buffer) => handleData(data.toString()));
+    proc.stderr?.on('data', (data: Buffer) => handleData(data.toString()));
+
+    proc.on('exit', () => {
       clearTimeout(timeout);
       if (!exitHandled) {
         exitHandled = true;
@@ -147,15 +151,15 @@ function pollOnce(): Promise<CliStatus | null> {
       }
     });
 
+    proc.on('error', (err) => {
+      clearTimeout(timeout);
+      log('cli-poller', 'error', 'Process error: ' + err.message);
+      done(null);
+    });
+
     // Start claude
     setTimeout(() => {
-      try {
-        term.write(getClaudePath() + '\r');
-      } catch {
-        clearTimeout(timeout);
-        done(null);
-        return;
-      }
+      writeToProc(getClaudePath() + '\n');
       resetIdleTimer();
     }, 500);
   });
