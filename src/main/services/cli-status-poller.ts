@@ -85,14 +85,20 @@ function pollOnce(): Promise<CliStatus | null> {
 
     let trustHandled = false;
 
+    function stripAnsi(s: string): string {
+      return s.replace(/\x1b\[[0-9;]*[a-zA-Z]|\x1b[>\?][0-9;]*[a-zA-Z]/g, '');
+    }
+
     term.onData((data: string) => {
       output += data;
 
       // Handle "Do you trust this folder?" prompt — press Enter to confirm "Yes"
-      if (!trustHandled && /trust\s*this\s*folder/i.test(output)) {
+      if (!trustHandled && /trust.{0,5}this.{0,5}folder/i.test(stripAnsi(output))) {
         trustHandled = true;
         log('cli-poller', 'info', 'Trust prompt detected, confirming...');
-        try { term.write('\r'); } catch {}
+        // Send Enter with delays — the prompt UI may not be ready immediately
+        setTimeout(() => { try { term.write('\r'); } catch {} }, 500);
+        setTimeout(() => { try { term.write('\r'); } catch {} }, 1500);
       }
 
       // Once we see the second "% used", we have what we need
