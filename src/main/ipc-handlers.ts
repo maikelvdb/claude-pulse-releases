@@ -496,6 +496,8 @@ input[type="range"]::-webkit-slider-thumb {
             <td>Quit Claude Pulse (with confirmation)</td></tr>
         <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>T</kbd></td>
             <td>Cycle theme (Dark &rarr; Light &rarr; Sunset)</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd></td>
+            <td>Cycle size (Compact &rarr; Full &rarr; Expanded)</td></tr>
       </table>
     </div>
 

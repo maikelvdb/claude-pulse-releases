@@ -21,7 +21,7 @@ export const PULSE_CONFIG_FILE = path.join(CLAUDE_DIR, 'claude-pulse-config.json
 
 // Horizontal dimensions (top/bottom)
 export const WINDOW_WIDTH_H = 540;
-export const WINDOW_WIDTH_H_COMPACT = 340;
+export const WINDOW_WIDTH_H_COMPACT = 360;
 export const WINDOW_HEIGHT_H = 68;
 export const WINDOW_HEIGHT_H_COMPACT = 35;
 export const WINDOW_HEIGHT_H_PREVIEW = 86;

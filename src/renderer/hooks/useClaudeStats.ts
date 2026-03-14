@@ -24,6 +24,7 @@ declare global {
       onUpdateReady: (callback: (path: string) => void) => () => void;
       onUpdateError: (callback: (error: string) => void) => () => void;
       installUpdate: (path: string) => void;
+      onCycleSize: (callback: () => void) => () => void;
       onConversationPreview: (callback: (msg: string) => void) => () => void;
       onSoundMuted: (callback: (muted: boolean) => void) => () => void;
       onDailyRollups: (callback: (rollups: import('../../shared/types').DailyRollups) => void) => () => void;

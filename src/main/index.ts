@@ -54,6 +54,11 @@ app.whenReady().then(() => {
     win.webContents.send('widget:confirm-quit');
   });
 
+  // Global shortcut: Ctrl+Shift+M to cycle widget size (compact → full → expanded)
+  globalShortcut.register('CommandOrControl+Shift+M', () => {
+    win.webContents.send('widget:cycle-size');
+  });
+
   // Global shortcut: Ctrl+Shift+T to cycle themes
   const themes: ('dark' | 'light' | 'sunset')[] = ['dark', 'light', 'sunset'];
   globalShortcut.register('CommandOrControl+Shift+T', () => {

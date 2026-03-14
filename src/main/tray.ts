@@ -3,12 +3,14 @@ import path from 'path';
 import { getWindow, showWidget, hideWidget } from './window-manager';
 import { openHelpWindow } from './ipc-handlers';
 import { getConfig, saveConfig } from './services/config-store';
+import { getTodayTokenUsage } from './services/stats-reader';
+import { getCachedCliStatus } from './services/cli-status-poller';
+import { getActiveSession } from './services/session-watcher';
 
 let tray: Tray | null = null;
+let refreshIntervalId: ReturnType<typeof setInterval> | null = null;
 
 function getTrayIcon(): Electron.NativeImage {
-  // In packaged app: resources/app.asar/build/icon.ico
-  // In dev: project-root/build/icon.ico
   const basePath = app.isPackaged
     ? path.join(process.resourcesPath, 'app.asar', 'build')
     : path.join(__dirname, '..', '..', 'build');
@@ -17,7 +19,6 @@ function getTrayIcon(): Electron.NativeImage {
   const icon = nativeImage.createFromPath(icoPath);
 
   if (icon.isEmpty()) {
-    // Fallback: try .png
     const pngPath = path.join(basePath, 'icon.png');
     const pngIcon = nativeImage.createFromPath(pngPath);
     return pngIcon.isEmpty() ? nativeImage.createEmpty() : pngIcon.resize({ width: 16, height: 16 });
@@ -26,26 +27,38 @@ function getTrayIcon(): Electron.NativeImage {
   return icon.resize({ width: 16, height: 16 });
 }
 
-export function createTray(): void {
-  tray = new Tray(getTrayIcon());
-  tray.setToolTip('Claude Pulse');
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+  return n.toString();
+}
 
-  const contextMenu = Menu.buildFromTemplate([
+function buildContextMenu(): Menu {
+  const tokens = getTodayTokenUsage();
+  const cli = getCachedCliStatus();
+  const session = getActiveSession();
+  const total = tokens.inputToday + tokens.outputToday;
+
+  const sessionLabel = session.isActive ? 'Active' : 'Idle';
+  const hourlyLabel = cli ? `${cli.sessionPercent}%` : '--';
+  const weeklyLabel = cli ? `${cli.weeklyPercent}%` : '--';
+
+  return Menu.buildFromTemplate([
+    { label: `Session: ${sessionLabel}`, enabled: false },
+    { label: `Tokens today: ${formatTokens(total)}`, enabled: false },
+    { label: `5h limit: ${hourlyLabel}  |  Weekly: ${weeklyLabel}`, enabled: false },
+    { type: 'separator' },
     {
       label: 'Show / Hide',
       click: () => {
         const win = getWindow();
         if (!win) return;
-        if (win.isVisible()) {
-          hideWidget();
-        } else {
-          showWidget();
-        }
+        if (win.isVisible()) hideWidget();
+        else showWidget();
       },
     },
-    { type: 'separator' },
     {
-      label: 'Help',
+      label: 'Help & Settings',
       click: () => openHelpWindow(),
     },
     {
@@ -63,18 +76,41 @@ export function createTray(): void {
       click: () => app.quit(),
     },
   ]);
+}
 
-  tray.setContextMenu(contextMenu);
+function updateTray(): void {
+  if (!tray) return;
+  const tokens = getTodayTokenUsage();
+  const cli = getCachedCliStatus();
+  const session = getActiveSession();
+  const total = tokens.inputToday + tokens.outputToday;
+
+  const status = session.isActive ? 'Active' : 'Idle';
+  const hourly = cli ? `${cli.sessionPercent}%` : '--';
+  const weekly = cli ? `${cli.weeklyPercent}%` : '--';
+
+  tray.setToolTip(`Claude Pulse — ${status}\nTokens: ${formatTokens(total)}\n5h: ${hourly} | Weekly: ${weekly}`);
+  tray.setContextMenu(buildContextMenu());
+}
+
+export function createTray(): void {
+  tray = new Tray(getTrayIcon());
+  updateTray();
 
   tray.on('click', () => {
     const win = getWindow();
-    if (win) {
-      showWidget();
-    }
+    if (win) showWidget();
   });
+
+  // Refresh tray stats every 10s
+  refreshIntervalId = setInterval(updateTray, 10_000);
 }
 
 export function destroyTray(): void {
+  if (refreshIntervalId) {
+    clearInterval(refreshIntervalId);
+    refreshIntervalId = null;
+  }
   if (tray) {
     tray.destroy();
     tray = null;

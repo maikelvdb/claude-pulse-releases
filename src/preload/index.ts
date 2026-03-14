@@ -53,6 +53,11 @@ contextBridge.exposeInMainWorld('claudePulse', {
   installUpdate: (path: string) => {
     ipcRenderer.send('widget:install-update', path);
   },
+  onCycleSize: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('widget:cycle-size', handler);
+    return () => { ipcRenderer.removeListener('widget:cycle-size', handler); };
+  },
   onConversationPreview: makeListener<string>('claude:conversation-preview'),
   onDailyRollups: makeListener<DailyRollups>('claude:daily-rollups'),
   onCliStatus: makeListener<CliStatus | null>('claude:cli-status'),

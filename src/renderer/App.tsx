@@ -144,6 +144,28 @@ export default function App() {
     return cleanup;
   }, []);
 
+  // Global shortcut: Ctrl+Shift+M to cycle size (compact → full → expanded)
+  useEffect(() => {
+    const cleanup = window.claudePulse.onCycleSize(() => {
+      if (isCompact) {
+        // compact → full
+        setIsCompact(false);
+        window.claudePulse.setCompact(false);
+      } else if (!isExpanded) {
+        // full → expanded
+        toggleExpanded();
+      } else {
+        // expanded → compact
+        toggleExpanded(); // collapse first
+        setTimeout(() => {
+          setIsCompact(true);
+          window.claudePulse.setCompact(true);
+        }, 50);
+      }
+    });
+    return cleanup;
+  }, [isCompact, isExpanded, toggleExpanded]);
+
   // Listen for update availability
   useEffect(() => {
     const cleanup = window.claudePulse.onUpdateInfo((info) => {
