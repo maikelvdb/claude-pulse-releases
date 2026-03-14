@@ -15,7 +15,7 @@ let cachedStatus: CliStatus | null = null;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 const POLL_INTERVAL = 30_000; // 30s
-const SPAWN_TIMEOUT = 15_000; // 15s max for a single poll
+const SPAWN_TIMEOUT = 30_000; // 30s max for a single poll
 
 function getClaudePath(): string {
   if (process.platform === 'win32') {
@@ -57,7 +57,8 @@ function pollOnce(): Promise<CliStatus | null> {
 
     const timeout = setTimeout(() => {
       try { term.kill(); } catch {}
-      log('cli-poller', 'warn', 'Poll timed out after ' + (SPAWN_TIMEOUT / 1000) + 's');
+      const truncated = output.length > 200 ? output.slice(-200) : output;
+      log('cli-poller', 'warn', 'Poll timed out after ' + (SPAWN_TIMEOUT / 1000) + 's — last output: ' + truncated.replace(/[\r\n]+/g, ' ').trim());
       done(null);
     }, SPAWN_TIMEOUT);
 

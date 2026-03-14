@@ -194,7 +194,7 @@ export function StatusBar({
   if (isCompact && !isVertical) {
     return (
       <div
-        className={`relative flex items-center gap-2 px-2 pr-3 bg-claude-bg border border-claude-border rounded shadow-lg h-[35px] transition-all duration-300`}
+        className={`relative flex items-center gap-2 px-2 pr-4 bg-claude-bg border border-claude-border rounded shadow-lg h-[35px] transition-all duration-300`}
       >
         <div className="flex-shrink-0 w-[28px] h-[28px] overflow-hidden relative">
           <video
