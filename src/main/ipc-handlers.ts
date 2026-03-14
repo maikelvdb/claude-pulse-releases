@@ -712,7 +712,7 @@ export function openHelpWindow(): void {
 
   const display = screen.getPrimaryDisplay();
   const { width: sw, height: sh } = display.workAreaSize;
-  const w = 420;
+  const w = 500;
   const h = 520;
 
   helpWindow = new BrowserWindow({
