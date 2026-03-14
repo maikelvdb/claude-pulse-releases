@@ -65,17 +65,19 @@ function pollOnce(): Promise<CliStatus | null> {
     let term: pty.IPty;
     try {
       const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/bash';
+      // Build a clean env: remove vars that Claude CLI uses to detect
+      // it's running inside another Claude Code session
+      const cleanEnv = { ...process.env };
+      delete cleanEnv.CLAUDECODE;
+      delete cleanEnv.CLAUDE_CODE_ENTRYPOINT;
       term = pty.spawn(shell, [], {
         name: 'xterm',
         cols: 120,
         rows: 30,
         cwd: os.homedir(),
-        env: {
-          ...process.env,
-          CLAUDECODE: '',
-          CLAUDE_CODE_ENTRYPOINT: '',
-        },
-      });
+        env: cleanEnv,
+        useConpty: false, // WinPTY works better for capturing TUI output
+      } as pty.IPtyForkOptions & { useConpty?: boolean });
     } catch (err) {
       clearTimeout(timeout);
       log('cli-poller', 'error', 'Failed to spawn PTY: ' + (err instanceof Error ? err.message : String(err)));
@@ -85,6 +87,7 @@ function pollOnce(): Promise<CliStatus | null> {
 
     let trustHandled = false;
     let statusSent = false;
+    let usageTabSent = false;
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
     function stripAnsi(s: string): string {
@@ -106,7 +109,6 @@ function pollOnce(): Promise<CliStatus | null> {
 
     term.onData((data: string) => {
       output += data;
-
       // Reset idle timer on each chunk of output
       resetIdleTimer();
 
@@ -118,6 +120,20 @@ function pollOnce(): Promise<CliStatus | null> {
         setTimeout(() => { try { term.write('\r'); } catch {} }, 1500);
       }
 
+      // /status opens a tabbed TUI: Status | Config | Usage
+      // Navigate to the Usage tab (press Tab twice) to get "% used" data
+      const cleanOutput = stripAnsi(output);
+      if (!usageTabSent && /Status\s+Config\s+Usage/i.test(cleanOutput)) {
+        usageTabSent = true;
+        log('cli-poller', 'info', 'Status TUI detected, navigating to Usage tab...');
+        setTimeout(() => {
+          try { term.write('\t'); } catch {} // Config tab
+          setTimeout(() => {
+            try { term.write('\t'); } catch {} // Usage tab
+          }, 300);
+        }, 300);
+      }
+
       // Once we see the second "% used", we have what we need
       const percentCount = (output.match(/\d+%\s*used/g) || []).length;
       if (percentCount >= 2) {
@@ -125,15 +141,19 @@ function pollOnce(): Promise<CliStatus | null> {
         setTimeout(() => {
           clearTimeout(timeout);
           const parsed = parseStatusOutput(output);
-          // Send /exit to cleanly close
-          try { term.write('/exit\r'); } catch {}
+          log('cli-poller', 'info', 'Parsed status, closing CLI...');
+          // Press Escape to exit the TUI, then /exit
+          try { term.write('\x1b'); } catch {}
           setTimeout(() => {
-            try { term.kill(); } catch {}
-            if (!exitHandled) {
-              exitHandled = true;
-              done(parsed);
-            }
-          }, 2000);
+            try { term.write('/exit\r'); } catch {}
+            setTimeout(() => {
+              try { term.kill(); } catch {}
+              if (!exitHandled) {
+                exitHandled = true;
+                done(parsed);
+              }
+            }, 2000);
+          }, 500);
         }, 500);
       }
     });
