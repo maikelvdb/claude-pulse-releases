@@ -21,7 +21,7 @@ const commonConfig = {
   },
   externals: {
     electron: 'commonjs electron',
-    '@homebridge/node-pty-prebuilt-multiarch': 'commonjs @homebridge/node-pty-prebuilt-multiarch',
+    'node-pty': 'commonjs node-pty',
   },
 };
 
