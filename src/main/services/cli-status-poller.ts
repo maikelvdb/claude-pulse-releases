@@ -84,19 +84,36 @@ function pollOnce(): Promise<CliStatus | null> {
     }
 
     let trustHandled = false;
+    let statusSent = false;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
     function stripAnsi(s: string): string {
       return s.replace(/\x1b\[[0-9;]*[a-zA-Z]|\x1b[>\?][0-9;]*[a-zA-Z]/g, '');
     }
 
+    // When output stops for 1.5s after launch, CLI is ready for /status
+    function resetIdleTimer() {
+      if (statusSent) return;
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        if (!statusSent) {
+          statusSent = true;
+          log('cli-poller', 'info', 'CLI appears ready, sending /status');
+          try { term.write('/status\r'); } catch {}
+        }
+      }, 1500);
+    }
+
     term.onData((data: string) => {
       output += data;
+
+      // Reset idle timer on each chunk of output
+      resetIdleTimer();
 
       // Handle "Do you trust this folder?" prompt — press Enter to confirm "Yes"
       if (!trustHandled && /trust.{0,5}this.{0,5}folder/i.test(stripAnsi(output))) {
         trustHandled = true;
         log('cli-poller', 'info', 'Trust prompt detected, confirming...');
-        // Send Enter with delays — the prompt UI may not be ready immediately
         setTimeout(() => { try { term.write('\r'); } catch {} }, 500);
         setTimeout(() => { try { term.write('\r'); } catch {} }, 1500);
       }
@@ -130,7 +147,7 @@ function pollOnce(): Promise<CliStatus | null> {
       }
     });
 
-    // Start claude, wait for prompt, then send /status
+    // Start claude
     setTimeout(() => {
       try {
         term.write(getClaudePath() + '\r');
@@ -139,12 +156,7 @@ function pollOnce(): Promise<CliStatus | null> {
         done(null);
         return;
       }
-      // Wait for claude to start, then send /status
-      setTimeout(() => {
-        try {
-          term.write('/status\r');
-        } catch {}
-      }, 3000);
+      resetIdleTimer();
     }, 500);
   });
 }
