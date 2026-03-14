@@ -262,6 +262,7 @@ input[type="range"]::-webkit-slider-thumb {
   flex: 1; overflow-y: auto; background: #0d0d1a; border-radius: 6px;
   padding: 10px 12px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   font-size: 11px; line-height: 1.7; min-height: 0;
+  user-select: text; -webkit-user-select: text; cursor: text;
 }
 .console-output::-webkit-scrollbar { width: 6px; }
 .console-output::-webkit-scrollbar-track { background: transparent; }
@@ -273,7 +274,17 @@ input[type="range"]::-webkit-slider-thumb {
 .log-line.info .msg { color: #b0b0c0; }
 .log-line.warn .ts, .log-line.warn .src, .log-line.warn .msg { color: #e2b340; }
 .log-line.error .ts, .log-line.error .src, .log-line.error .msg { color: #f87171; }
+.log-line { cursor: pointer; padding: 1px 4px; border-radius: 3px; }
+.log-line:hover { background: #1a1a2e; }
 .console-empty { color: #555; font-style: italic; font-size: 12px; }
+.copy-toast {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: #22c55e; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 6px 16px; border-radius: 6px; z-index: 999;
+  opacity: 0; transition: opacity 0.2s;
+  pointer-events: none;
+}
+.copy-toast.show { opacity: 1; }
 
 /* Achievements tab */
 .achievement-row {
@@ -563,6 +574,19 @@ input[type="range"]::-webkit-slider-thumb {
     document.title = 'soundmute:' + (this.classList.contains('on') ? '1' : '0');
   });
 
+  // Copy toast
+  var toast = document.createElement('div');
+  toast.className = 'copy-toast';
+  toast.textContent = 'Copied!';
+  document.body.appendChild(toast);
+  var toastTimer = null;
+
+  function showCopyToast() {
+    toast.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { toast.classList.remove('show'); }, 2000);
+  }
+
   // Console log handling
   var consoleOutput = document.getElementById('console-output');
   var consoleHasEntries = false;
@@ -576,9 +600,14 @@ input[type="range"]::-webkit-slider-thumb {
     }
     var d = new Date(entry.timestamp);
     var ts = padTwo(d.getHours()) + ':' + padTwo(d.getMinutes()) + ':' + padTwo(d.getSeconds());
+    var rawText = ts + ' [' + entry.source + '] ' + entry.message;
     var div = document.createElement('div');
     div.className = 'log-line ' + entry.level;
     div.innerHTML = '<span class="ts">' + ts + '</span> <span class="src">[' + entry.source + ']</span> <span class="msg">' + entry.message.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+    div.title = 'Click to copy';
+    div.addEventListener('click', function() {
+      navigator.clipboard.writeText(rawText).then(showCopyToast);
+    });
     consoleOutput.insertBefore(div, consoleOutput.firstChild);
   }
 
