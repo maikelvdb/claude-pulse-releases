@@ -11,7 +11,8 @@ import { getCachedCliStatus } from './services/cli-status-poller';
 import { log, getLogBuffer, clearLogBuffer, onLogEntry, LogEntry } from './services/logger';
 import { getProjectBreakdown } from './services/project-scanner';
 import { getModelBreakdown } from './services/model-breakdown';
-import { ClaudeUsageState, ThemeName } from '../shared/types';
+import { ClaudeUsageState, ThemeName, Achievement } from '../shared/types';
+import { getAchievements, unlock, MILESTONE_MAP } from './services/achievement-store';
 import { POLL_INTERVAL_SESSION, POLL_INTERVAL_STATS } from '../shared/constants';
 import { getSnapEdge, resizeForExpand, resizeForCompact, setPositionLocked, getWindow } from './window-manager';
 import { saveConfig, getConfig } from './services/config-store';
@@ -66,8 +67,8 @@ body {
   -webkit-app-region: no-drag;
 }
 .tab {
-  padding: 8px 16px;
-  font-size: 12px;
+  padding: 8px 10px;
+  font-size: 11px;
   color: #888;
   cursor: pointer;
   border: none;
@@ -274,6 +275,28 @@ input[type="range"]::-webkit-slider-thumb {
 .log-line.error .ts, .log-line.error .src, .log-line.error .msg { color: #f87171; }
 .console-empty { color: #555; font-style: italic; font-size: 12px; }
 
+/* Achievements tab */
+.achievement-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid #333346;
+}
+.achievement-row:last-child { border-bottom: none; }
+.achievement-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+  background: #2a2a3e; border: 2px solid #444;
+}
+.achievement-row.unlocked .achievement-icon {
+  background: #E8744330; border-color: #E87443;
+}
+.achievement-info { flex: 1; }
+.achievement-name { font-size: 13px; color: #666; font-weight: 500; }
+.achievement-row.unlocked .achievement-name { color: #e0e0f0; }
+.achievement-desc { font-size: 11px; color: #555; }
+.achievement-row.unlocked .achievement-desc { color: #888; }
+.achievement-date { font-size: 10px; color: #E87443; }
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
@@ -297,6 +320,7 @@ input[type="range"]::-webkit-slider-thumb {
     Release Notes
     <span class="tab-dot" id="releases-dot"></span>
   </button>
+  <button class="tab" data-tab="achievements">Achievements</button>
   <button class="tab" data-tab="console">Console</button>
 </div>
 
@@ -461,6 +485,14 @@ input[type="range"]::-webkit-slider-thumb {
     <p class="current-version" id="current-version"></p>
   </div>
 
+  <!-- Achievements tab -->
+  <div class="tab-panel" id="tab-achievements">
+    <div class="section">
+      <h2>Achievements</h2>
+      <div id="achievements-list"><p style="color:#666">Loading...</p></div>
+    </div>
+  </div>
+
   <!-- Console tab -->
   <div class="tab-panel" id="tab-console">
     <div class="console-wrap">
@@ -547,9 +579,7 @@ input[type="range"]::-webkit-slider-thumb {
     var div = document.createElement('div');
     div.className = 'log-line ' + entry.level;
     div.innerHTML = '<span class="ts">' + ts + '</span> <span class="src">[' + entry.source + ']</span> <span class="msg">' + entry.message.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
-    consoleOutput.appendChild(div);
-    // Auto-scroll to bottom
-    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    consoleOutput.insertBefore(div, consoleOutput.firstChild);
   }
 
   document.getElementById('console-clear').addEventListener('click', function() {
@@ -655,9 +685,31 @@ input[type="range"]::-webkit-slider-thumb {
         'This month: <strong style="color:#c8c8d8">' + fmtTokens(thisMonth) + '</strong> &middot; ' +
         'All time: <strong style="color:#c8c8d8">' + fmtTokens(allTime) + '</strong></p>';
     }
+    if (e.data && e.data.type === 'achievements') {
+      var achs = e.data.achievements;
+      var icons = { tokens_500k: '\\u26A1', tokens_1m: '\\uD83D\\uDD25', tokens_5m: '\\uD83D\\uDE80', tokens_10m: '\\uD83C\\uDFC6' };
+      var html = '';
+      achs.forEach(function(a) {
+        var unlocked = !!a.unlockedAt;
+        var icon = icons[a.id] || '\\u2B50';
+        var dateStr = '';
+        if (unlocked) {
+          var d = new Date(a.unlockedAt);
+          dateStr = d.toLocaleDateString() + ' ' + padTwo(d.getHours()) + ':' + padTwo(d.getMinutes());
+        }
+        html += '<div class="achievement-row ' + (unlocked ? 'unlocked' : '') + '">' +
+          '<div class="achievement-icon">' + (unlocked ? icon : '\\uD83D\\uDD12') + '</div>' +
+          '<div class="achievement-info">' +
+            '<div class="achievement-name">' + a.name + '</div>' +
+            '<div class="achievement-desc">' + a.description + '</div>' +
+            (unlocked ? '<div class="achievement-date">Unlocked ' + dateStr + '</div>' : '') +
+          '</div></div>';
+      });
+      document.getElementById('achievements-list').innerHTML = html;
+    }
     if (e.data && e.data.type === 'log-buffer') {
       var entries = e.data.entries;
-      for (var i = 0; i < entries.length; i++) {
+      for (var i = entries.length - 1; i >= 0; i--) {
         appendLogEntry(entries[i]);
       }
     }
@@ -712,7 +764,7 @@ export function openHelpWindow(): void {
 
   const display = screen.getPrimaryDisplay();
   const { width: sw, height: sh } = display.workAreaSize;
-  const w = 500;
+  const w = 560;
   const h = 520;
 
   helpWindow = new BrowserWindow({
@@ -750,11 +802,13 @@ export function openHelpWindow(): void {
       autoStart: !!config.autoStart,
       soundMuted: !!config.soundMuted,
     };
+    const achievements = getAchievements();
     helpWindow.webContents.executeJavaScript(`
       document.querySelector('.theme-btn[data-theme="${config.theme || 'dark'}"]')?.classList.add('active');
       window.postMessage(${JSON.stringify({ type: 'project-breakdown', projects })}, '*');
       window.postMessage(${JSON.stringify({ type: 'model-breakdown', models })}, '*');
       window.postMessage(${JSON.stringify({ type: 'daily-rollups', rollups })}, '*');
+      window.postMessage(${JSON.stringify({ type: 'achievements', achievements })}, '*');
       window.postMessage(${JSON.stringify(settings)}, '*');
     `);
 
@@ -901,6 +955,14 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.on('widget:open-help', () => {
     openHelpWindow();
   });
+
+  ipcMain.handle('achievements:list', () => getAchievements());
+
+  ipcMain.handle('achievements:unlock', (_event, id: string) => {
+    return unlock(id);
+  });
+
+  ipcMain.handle('achievements:milestone-map', () => MILESTONE_MAP);
 
   ipcMain.on('widget:quit', () => {
     const { app } = require('electron');

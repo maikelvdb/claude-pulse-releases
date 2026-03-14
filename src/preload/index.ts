@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { ClaudeUsageState, CliStatus, SnapEdge, ActivitySnapshot, UpdateInfo, ThemeName, DailyRollups } from '../shared/types';
+import { ClaudeUsageState, CliStatus, SnapEdge, ActivitySnapshot, UpdateInfo, ThemeName, DailyRollups, Achievement } from '../shared/types';
 
 function makeListener<T>(channel: string) {
   return (callback: (value: T) => void) => {
@@ -64,4 +64,7 @@ contextBridge.exposeInMainWorld('claudePulse', {
   requestTheme: () => {
     ipcRenderer.send('widget:request-theme');
   },
+  getAchievements: (): Promise<Achievement[]> => ipcRenderer.invoke('achievements:list'),
+  unlockAchievement: (id: string): Promise<boolean> => ipcRenderer.invoke('achievements:unlock', id),
+  getMilestoneMap: (): Promise<Record<number, string>> => ipcRenderer.invoke('achievements:milestone-map'),
 });

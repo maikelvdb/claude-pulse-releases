@@ -85,6 +85,13 @@ export interface DailyRollups {
   [date: string]: DailyRollup;
 }
 
+export interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  unlockedAt: number | null;  // timestamp or null if locked
+}
+
 export interface UpdateInfo {
   hasUpdate: boolean;
   currentVersion: string;

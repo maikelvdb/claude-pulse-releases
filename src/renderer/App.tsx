@@ -152,6 +152,24 @@ export default function App() {
     return cleanup;
   }, []);
 
+  // Load milestone map and already-unlocked achievements on mount
+  const milestoneMapRef = useRef<Record<number, string>>({});
+  useEffect(() => {
+    window.claudePulse.getMilestoneMap().then((map) => {
+      milestoneMapRef.current = map;
+    });
+    window.claudePulse.getAchievements().then((achievements) => {
+      for (const a of achievements) {
+        if (a.unlockedAt) {
+          // Find the threshold for this achievement and mark as reached
+          const threshold = Object.entries(milestoneMapRef.current)
+            .find(([, id]) => id === a.id);
+          if (threshold) reachedTiers.current.add(Number(threshold[0]));
+        }
+      }
+    });
+  }, []);
+
   // Milestone detection
   useEffect(() => {
     const total = state.tokens.inputToday + state.tokens.outputToday;
@@ -161,9 +179,16 @@ export default function App() {
     for (const [threshold, intensity] of tiers) {
       if (total >= threshold && !reachedTiers.current.has(threshold)) {
         reachedTiers.current.add(threshold);
-        setConfetti(intensity);
-        if (intensity === 'small') playSparkle();
-        else playCelebration();
+        const achievementId = milestoneMapRef.current[threshold];
+        if (achievementId) {
+          window.claudePulse.unlockAchievement(achievementId).then((isNew) => {
+            if (isNew) {
+              setConfetti(intensity);
+              if (intensity === 'small') playSparkle();
+              else playCelebration();
+            }
+          });
+        }
       }
     }
   }, [state.tokens]);

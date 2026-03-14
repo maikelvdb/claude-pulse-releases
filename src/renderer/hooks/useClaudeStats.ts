@@ -30,6 +30,9 @@ declare global {
       onThemeChange: (callback: (theme: ThemeName) => void) => () => void;
       setTheme: (theme: ThemeName) => void;
       requestTheme: () => void;
+      getAchievements: () => Promise<import('../../shared/types').Achievement[]>;
+      unlockAchievement: (id: string) => Promise<boolean>;
+      getMilestoneMap: () => Promise<Record<number, string>>;
     };
   }
 }
