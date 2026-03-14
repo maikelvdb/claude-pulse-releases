@@ -804,7 +804,7 @@ export function openHelpWindow(): void {
     frame: false,
     transparent: false,
     resizable: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     skipTaskbar: false,
     backgroundColor: '#1a1a2e',
     webPreferences: {
