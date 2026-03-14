@@ -1,6 +1,6 @@
 // src/main/index.ts
 import { app, globalShortcut } from 'electron';
-import { createWindow, showWidget, scheduleHide, setOnEdgeChange, setOnOffsetChange, startHoverDetection, stopHoverDetection, getWindow, resizeForPreview, setPositionLocked } from './window-manager';
+import { createWindow, showWidget, scheduleHide, setOnEdgeChange, setOnOffsetChange, startHoverDetection, stopHoverDetection, getWindow, resizeForPreview, setPositionLocked, setDefaultOpacity, setHoverOpacity } from './window-manager';
 import { setupIpcHandlers } from './ipc-handlers';
 import { getActiveSession } from './services/session-watcher';
 import { loadConfig, saveConfig, getConfig } from './services/config-store';
@@ -30,7 +30,8 @@ app.whenReady().then(() => {
   }
 
   const win = createWindow(config.snapEdge, config.userOffset);
-  win.setOpacity(config.opacity ?? 1);
+  setDefaultOpacity(config.opacity ?? 1);
+  setHoverOpacity(config.hoverOpacity ?? 1);
   if (config.positionLocked) setPositionLocked(true);
 
   if (isDev) {

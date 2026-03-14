@@ -14,7 +14,7 @@ import { getModelBreakdown } from './services/model-breakdown';
 import { ClaudeUsageState, ThemeName, Achievement } from '../shared/types';
 import { getAchievements, unlock, MILESTONE_MAP } from './services/achievement-store';
 import { POLL_INTERVAL_SESSION, POLL_INTERVAL_STATS } from '../shared/constants';
-import { getSnapEdge, resizeForExpand, resizeForCompact, setPositionLocked, getWindow } from './window-manager';
+import { getSnapEdge, resizeForExpand, resizeForCompact, setPositionLocked, setDefaultOpacity, setHoverOpacity, getWindow } from './window-manager';
 import { saveConfig, getConfig } from './services/config-store';
 
 let cachedState: ClaudeUsageState | null = null;
@@ -74,12 +74,14 @@ body {
 }
 .settings-header h2 { color: #E87443; font-size: 16px; flex: 1; margin: 0; border: none; padding: 0; }
 .settings-back {
+  -webkit-app-region: no-drag;
   background: none; border: 1px solid #444; color: #888;
   font-size: 14px; cursor: pointer; width: 24px; height: 24px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 4px; line-height: 1;
 }
 .settings-back:hover { color: #E87443; border-color: #E87443; }
+.settings-overlay * { -webkit-app-region: no-drag; }
 .settings-body {
   flex: 1; overflow-y: auto; padding: 16px 24px 24px;
 }
@@ -388,12 +390,22 @@ input[type="range"]::-webkit-slider-thumb {
       </div>
       <div class="settings-row">
         <div>
-          <div class="settings-label">Opacity</div>
-          <div class="settings-sublabel">Min 15%</div>
+          <div class="settings-label">Default opacity</div>
+          <div class="settings-sublabel">Widget transparency at rest</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <input type="range" id="opacity-slider" min="15" max="100" value="100" />
+          <input type="range" id="opacity-slider" min="40" max="100" value="100" />
           <span class="opacity-value" id="opacity-value">100%</span>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Hover opacity</div>
+          <div class="settings-sublabel">Widget transparency on hover</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" id="hover-opacity-slider" min="40" max="100" value="100" />
+          <span class="opacity-value" id="hover-opacity-value">100%</span>
         </div>
       </div>
     </div>
@@ -627,6 +639,18 @@ input[type="range"]::-webkit-slider-thumb {
     }, 150);
   });
 
+  var hoverOpacitySlider = document.getElementById('hover-opacity-slider');
+  var hoverOpacityValue = document.getElementById('hover-opacity-value');
+  var hoverOpacityTimer = null;
+  hoverOpacitySlider.addEventListener('input', function() {
+    var val = parseInt(hoverOpacitySlider.value);
+    hoverOpacityValue.textContent = val + '%';
+    if (hoverOpacityTimer) clearTimeout(hoverOpacityTimer);
+    hoverOpacityTimer = setTimeout(function() {
+      document.title = 'hoveropacity:' + (val / 100);
+    }, 150);
+  });
+
   document.getElementById('lock-toggle').addEventListener('click', function() {
     this.classList.toggle('on');
     document.title = 'lock:' + (this.classList.contains('on') ? '1' : '0');
@@ -727,6 +751,8 @@ input[type="range"]::-webkit-slider-thumb {
     if (e.data && e.data.type === 'settings') {
       document.getElementById('opacity-slider').value = Math.round(e.data.opacity * 100);
       document.getElementById('opacity-value').textContent = Math.round(e.data.opacity * 100) + '%';
+      document.getElementById('hover-opacity-slider').value = Math.round(e.data.hoverOpacity * 100);
+      document.getElementById('hover-opacity-value').textContent = Math.round(e.data.hoverOpacity * 100) + '%';
       if (e.data.positionLocked) document.getElementById('lock-toggle').classList.add('on');
       if (e.data.autoStart) document.getElementById('autostart-toggle').classList.add('on');
       if (e.data.soundMuted) document.getElementById('mute-toggle').classList.add('on');
@@ -895,6 +921,7 @@ export function openHelpWindow(): void {
     const settings = {
       type: 'settings',
       opacity: config.opacity ?? 1,
+      hoverOpacity: config.hoverOpacity ?? 1,
       positionLocked: !!config.positionLocked,
       autoStart: !!config.autoStart,
       soundMuted: !!config.soundMuted,
@@ -966,9 +993,16 @@ export function openHelpWindow(): void {
     } else if (title.startsWith('opacity:')) {
       const val = parseFloat(title.slice(8));
       if (!isNaN(val)) {
-        const clamped = Math.max(0.15, Math.min(1, val));
+        const clamped = Math.max(0.4, Math.min(1, val));
         saveConfig({ opacity: clamped });
-        getWindow()?.setOpacity(clamped);
+        setDefaultOpacity(clamped);
+      }
+    } else if (title.startsWith('hoveropacity:')) {
+      const val = parseFloat(title.slice(13));
+      if (!isNaN(val)) {
+        const clamped = Math.max(0.4, Math.min(1, val));
+        saveConfig({ hoverOpacity: clamped });
+        setHoverOpacity(clamped);
       }
     } else if (title.startsWith('lock:')) {
       const locked = title.slice(5) === '1';

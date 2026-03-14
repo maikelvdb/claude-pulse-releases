@@ -19,6 +19,8 @@ let isExpanded = false;
 let isCompact = false;
 let hasPreview = false;
 let positionLocked = false;
+let defaultOpacity = 1;
+let hoverOpacity = 1;
 
 export function setPositionLocked(locked: boolean): void {
   positionLocked = locked;
@@ -254,6 +256,7 @@ export function startHoverDetection(): void {
     if (inside !== isHovered) {
       isHovered = inside;
       mainWindow.webContents.send('widget:hover', inside);
+      mainWindow.setOpacity(inside ? hoverOpacity : defaultOpacity);
     }
 
     // Proximity detection — show widget when cursor is near the widget's actual position
@@ -292,6 +295,16 @@ export function stopHoverDetection(): void {
     clearInterval(hoverIntervalId);
     hoverIntervalId = null;
   }
+}
+
+export function setDefaultOpacity(val: number): void {
+  defaultOpacity = val;
+  if (mainWindow && !isHovered) mainWindow.setOpacity(val);
+}
+
+export function setHoverOpacity(val: number): void {
+  hoverOpacity = val;
+  if (mainWindow && isHovered) mainWindow.setOpacity(val);
 }
 
 export function getWindow(): BrowserWindow | null {
