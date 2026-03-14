@@ -14,6 +14,7 @@ declare global {
       onHover: (callback: (hovered: boolean) => void) => () => void;
       onToggleMinimize: (callback: () => void) => () => void;
       requestResize: (expanded: boolean) => void;
+      setCompact: (compact: boolean) => void;
       openHelp: () => void;
       onUpdateInfo: (callback: (info: UpdateInfo) => void) => () => void;
       onConfirmQuit: (callback: () => void) => () => void;

@@ -22,6 +22,7 @@ interface StatusBarProps {
   snapEdge: SnapEdge;
   activityHistory: ActivitySnapshot[];
   isExpanded: boolean;
+  isCompact: boolean;
   hasUpdate: boolean;
   conversationPreview: string;
   dailyRollups: DailyRollups;
@@ -112,6 +113,7 @@ export function StatusBar({
   snapEdge,
   activityHistory,
   isExpanded,
+  isCompact,
   hasUpdate,
   conversationPreview,
   dailyRollups,
@@ -184,6 +186,45 @@ export function StatusBar({
               <MiniHeatmap rollups={dailyRollups} orientation="vertical" onClickHistory={onHelp} />
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (isCompact && !isVertical) {
+    return (
+      <div
+        className={`relative flex items-center gap-2 px-2 bg-claude-bg border border-claude-border ${radius} shadow-lg h-[35px] transition-all duration-300`}
+      >
+        <div className="flex-shrink-0 w-[28px] h-[28px] overflow-hidden relative">
+          <video
+            src={clawdVideo}
+            autoPlay
+            loop
+            muted
+            playsInline
+            width={50}
+            height={50}
+            className="absolute top-1/2 left-1/2 -translate-x-[calc(50%+5px)] -translate-y-[calc(50%+12px)]"
+            style={{ minWidth: 50, minHeight: 50, objectFit: 'contain' }}
+          />
+        </div>
+        <div className="w-px h-5 bg-claude-border" />
+        <SessionIndicator
+          isActive={state.session.isActive}
+          model={state.currentModel}
+          orientation="horizontal"
+        />
+        <div className="w-px h-5 bg-claude-border" />
+        <TokenCounter tokens={state.tokens} orientation="horizontal" />
+        <div className="w-px h-5 bg-claude-border" />
+        <div className="flex-1 min-w-[60px]">
+          <LimitBar
+            label="5h"
+            ratio={state.limits.hourlyUsed}
+            orientation="horizontal"
+            tooltip={`${Math.round(state.limits.hourlyUsed * 100)}% used${state.cliStatus?.sessionResetTime ? ` · Resets ${state.cliStatus.sessionResetTime}` : ''}`}
+          />
         </div>
       </div>
     );

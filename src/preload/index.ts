@@ -29,6 +29,9 @@ contextBridge.exposeInMainWorld('claudePulse', {
   requestResize: (expanded: boolean) => {
     ipcRenderer.send('widget:resize', expanded);
   },
+  setCompact: (compact: boolean) => {
+    ipcRenderer.send('widget:compact', compact);
+  },
   openHelp: () => {
     ipcRenderer.send('widget:open-help');
   },

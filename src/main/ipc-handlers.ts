@@ -13,7 +13,7 @@ import { getProjectBreakdown } from './services/project-scanner';
 import { getModelBreakdown } from './services/model-breakdown';
 import { ClaudeUsageState, ThemeName } from '../shared/types';
 import { POLL_INTERVAL_SESSION, POLL_INTERVAL_STATS } from '../shared/constants';
-import { getSnapEdge, resizeForExpand, setPositionLocked, getWindow } from './window-manager';
+import { getSnapEdge, resizeForExpand, resizeForCompact, setPositionLocked, getWindow } from './window-manager';
 import { saveConfig, getConfig } from './services/config-store';
 
 let cachedState: ClaudeUsageState | null = null;
@@ -892,6 +892,10 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.on('widget:resize', (_event, expanded: boolean) => {
     resizeForExpand(expanded);
+  });
+
+  ipcMain.on('widget:compact', (_event, compact: boolean) => {
+    resizeForCompact(compact);
   });
 
   ipcMain.on('widget:open-help', () => {

@@ -2,7 +2,7 @@
 import { BrowserWindow, screen } from 'electron';
 import path from 'path';
 import {
-  WINDOW_WIDTH_H, WINDOW_HEIGHT_H, WINDOW_HEIGHT_H_PREVIEW,
+  WINDOW_WIDTH_H, WINDOW_WIDTH_H_COMPACT, WINDOW_HEIGHT_H, WINDOW_HEIGHT_H_COMPACT, WINDOW_HEIGHT_H_PREVIEW,
   WINDOW_WIDTH_V, WINDOW_HEIGHT_V, WINDOW_HEIGHT_V_PREVIEW,
   WINDOW_HEIGHT_H_EXPANDED, WINDOW_WIDTH_V_EXPANDED,
   AUTO_HIDE_DELAY,
@@ -16,6 +16,7 @@ let hideTimeout: NodeJS.Timeout | null = null;
 let currentEdge: SnapEdge = 'top';
 let onEdgeChange: ((edge: SnapEdge) => void) | null = null;
 let isExpanded = false;
+let isCompact = false;
 let hasPreview = false;
 let positionLocked = false;
 
@@ -47,6 +48,7 @@ function isHorizontalEdge(edge: SnapEdge): boolean {
 
 function getWindowSize(edge: SnapEdge): { width: number; height: number } {
   if (isHorizontalEdge(edge)) {
+    if (isCompact) return { width: WINDOW_WIDTH_H_COMPACT, height: WINDOW_HEIGHT_H_COMPACT };
     let h = WINDOW_HEIGHT_H;
     if (isExpanded) h = WINDOW_HEIGHT_H_EXPANDED;
     else if (hasPreview) h = WINDOW_HEIGHT_H_PREVIEW;
@@ -214,6 +216,15 @@ export function resizeForExpand(expanded: boolean): void {
   isExpanded = expanded;
   const pos = getPosition(currentEdge);
   applyBounds(pos);
+}
+
+export function resizeForCompact(compact: boolean): void {
+  if (!mainWindow || isCompact === compact) return;
+  isCompact = compact;
+  if (!isExpanded) {
+    const pos = getPosition(currentEdge);
+    applyBounds(pos);
+  }
 }
 
 export function resizeForPreview(preview: boolean): void {

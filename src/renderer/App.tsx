@@ -54,12 +54,16 @@ export default function App() {
   const { state, snapEdge, activityHistory, isExpanded, toggleExpanded, conversationPreview, dailyRollups } = useClaudeStats();
   const [visible, setVisible] = useState(true);
   const [minimized, setMinimized] = useState(false);
+  const [isCompact, setIsCompact] = useState(false);
   const [showQuitConfirm, setShowQuitConfirm] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
   const [confetti, setConfetti] = useState<'small' | 'medium' | 'large' | 'party' | null>(null);
   const { playWarning, playUrgent, playSparkle, playCelebration } = useSounds();
   const reachedTiers = useRef<Set<number>>(new Set());
   const prevHourlyUsed = useRef(0);
+  const compactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isExpandedRef = useRef(isExpanded);
+  isExpandedRef.current = isExpanded;
 
   const toggleMinimized = useCallback(() => {
     setMinimized(prev => !prev);
@@ -73,6 +77,56 @@ export default function App() {
     const cleanup = window.claudePulse.onVisibility((v: boolean) => setVisible(v));
     return cleanup;
   }, []);
+
+  // Auto-compact after hover out, expand on hover in
+  useEffect(() => {
+    const isHorizontal = snapEdge === 'top' || snapEdge === 'bottom';
+    if (!isHorizontal) {
+      setIsCompact(false);
+      window.claudePulse.setCompact(false);
+      return;
+    }
+
+    const goCompact = () => {
+      setIsCompact(true);
+      window.claudePulse.setCompact(true);
+    };
+
+    const goFull = () => {
+      setIsCompact(false);
+      window.claudePulse.setCompact(false);
+    };
+
+    const cleanup = window.claudePulse.onHover((hovered: boolean) => {
+      if (hovered) {
+        if (compactTimerRef.current) {
+          clearTimeout(compactTimerRef.current);
+          compactTimerRef.current = null;
+        }
+        goFull();
+      } else if (!isExpandedRef.current) {
+        if (compactTimerRef.current) clearTimeout(compactTimerRef.current);
+        compactTimerRef.current = setTimeout(() => {
+          goCompact();
+          compactTimerRef.current = null;
+        }, 3000);
+      }
+    });
+
+    // Start compact timer on mount
+    compactTimerRef.current = setTimeout(() => {
+      goCompact();
+      compactTimerRef.current = null;
+    }, 3000);
+
+    return () => {
+      cleanup();
+      if (compactTimerRef.current) {
+        clearTimeout(compactTimerRef.current);
+        compactTimerRef.current = null;
+      }
+    };
+  }, [snapEdge]);
 
   // Global shortcut: Ctrl+Shift+P to toggle (registered in main process)
   useEffect(() => {
@@ -181,6 +235,7 @@ export default function App() {
         snapEdge={snapEdge}
         activityHistory={activityHistory}
         isExpanded={isExpanded}
+        isCompact={isCompact}
         hasUpdate={hasUpdate}
         conversationPreview={conversationPreview}
         dailyRollups={dailyRollups}

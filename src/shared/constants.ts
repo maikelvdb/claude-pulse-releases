@@ -14,13 +14,16 @@ export const POLL_INTERVAL_JSONL = 30000;    // 30s
 export const POLL_INTERVAL_CLI_STATUS = 30000; // 30s
 
 export const AUTO_HIDE_DELAY = 3000;         // 3s
+export const COMPACT_DELAY = 3000;           // 3s after hover out
 export const ANIMATION_DURATION = 300;       // 300ms
 
 export const PULSE_CONFIG_FILE = path.join(CLAUDE_DIR, 'claude-pulse-config.json');
 
 // Horizontal dimensions (top/bottom)
 export const WINDOW_WIDTH_H = 540;
+export const WINDOW_WIDTH_H_COMPACT = 340;
 export const WINDOW_HEIGHT_H = 68;
+export const WINDOW_HEIGHT_H_COMPACT = 35;
 export const WINDOW_HEIGHT_H_PREVIEW = 86;
 
 // Vertical dimensions (left/right)
