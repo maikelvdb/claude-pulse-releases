@@ -37,7 +37,7 @@ jobs:
         run: npm ci
 
       - name: Build & package
-        run: npm run package
+        run: npm run package -- --publish never
 
       - name: Find installer
         shell: bash
