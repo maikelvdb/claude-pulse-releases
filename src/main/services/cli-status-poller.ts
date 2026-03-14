@@ -83,8 +83,17 @@ function pollOnce(): Promise<CliStatus | null> {
       return;
     }
 
+    let trustHandled = false;
+
     term.onData((data: string) => {
       output += data;
+
+      // Handle "Do you trust this folder?" prompt — press Enter to confirm "Yes"
+      if (!trustHandled && /trust\s*this\s*folder/i.test(output)) {
+        trustHandled = true;
+        log('cli-poller', 'info', 'Trust prompt detected, confirming...');
+        try { term.write('\r'); } catch {}
+      }
 
       // Once we see the second "% used", we have what we need
       const percentCount = (output.match(/\d+%\s*used/g) || []).length;

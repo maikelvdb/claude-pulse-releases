@@ -47,15 +47,50 @@ body {
 .header h1 { color: #E87443; font-size: 18px; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
 .header .version-badge { font-size: 10px; color: #888; background: #2a2a3e; border: 1px solid #444; border-radius: 10px; padding: 1px 8px; font-weight: normal; }
 .header .subtitle { color: #888; font-size: 12px; }
-.close-btn {
+.header-btns {
   -webkit-app-region: no-drag;
   position: absolute; top: 16px; right: 20px;
+  display: flex; gap: 6px;
+}
+.header-btn {
   background: none; border: 1px solid #444; color: #888;
-  font-size: 16px; cursor: pointer; width: 24px; height: 24px;
+  font-size: 14px; cursor: pointer; width: 24px; height: 24px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 4px; line-height: 1;
 }
-.close-btn:hover { color: #E87443; border-color: #E87443; }
+.header-btn:hover { color: #E87443; border-color: #E87443; }
+
+/* Settings overlay */
+.settings-overlay {
+  position: fixed; inset: 0; background: #1a1a2e; z-index: 100;
+  display: none; flex-direction: column;
+}
+.settings-overlay.visible { display: flex; }
+.settings-header {
+  padding: 20px 24px 16px;
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid #333346;
+  flex-shrink: 0;
+}
+.settings-header h2 { color: #E87443; font-size: 16px; flex: 1; margin: 0; border: none; padding: 0; }
+.settings-back {
+  background: none; border: 1px solid #444; color: #888;
+  font-size: 14px; cursor: pointer; width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; line-height: 1;
+}
+.settings-back:hover { color: #E87443; border-color: #E87443; }
+.settings-body {
+  flex: 1; overflow-y: auto; padding: 16px 24px 24px;
+}
+.settings-body::-webkit-scrollbar { width: 6px; }
+.settings-body::-webkit-scrollbar-track { background: transparent; }
+.settings-body::-webkit-scrollbar-thumb { background: #333346; border-radius: 3px; }
+.settings-group { margin-bottom: 20px; }
+.settings-group-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+  color: #666; margin-bottom: 8px;
+}
 
 /* Tabs */
 .tabs {
@@ -214,7 +249,7 @@ kbd {
 }
 .toggle.on .toggle-knob { left: 18px; }
 input[type="range"] {
-  -webkit-appearance: none; width: 120px; height: 4px; border-radius: 2px;
+  -webkit-appearance: none; width: 140px; height: 4px; border-radius: 2px;
   background: #2a2a3e; outline: none;
 }
 input[type="range"]::-webkit-slider-thumb {
@@ -319,7 +354,79 @@ input[type="range"]::-webkit-slider-thumb {
 <div class="header">
   <h1>Claude Pulse <span class="version-badge" id="header-version"></span></h1>
   <p class="subtitle">Real-time Claude Code usage monitor</p>
-  <button class="close-btn" onclick="window.close()">&times;</button>
+  <div class="header-btns">
+    <button class="header-btn" id="settings-btn" title="Settings">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+    <button class="header-btn" onclick="window.close()" title="Close">&times;</button>
+  </div>
+</div>
+
+<!-- Settings overlay -->
+<div class="settings-overlay" id="settings-overlay">
+  <div class="settings-header">
+    <button class="settings-back" id="settings-back" title="Back">&larr;</button>
+    <h2>Settings</h2>
+  </div>
+  <div class="settings-body">
+    <div class="settings-group">
+      <div class="settings-group-title">Appearance</div>
+      <div class="section">
+        <div class="theme-picker">
+          <button class="theme-btn settings-theme-btn" data-theme="dark" title="Dark">
+            <span class="theme-swatch" style="background:#1e1e2e;border-color:#333346"></span> Dark
+          </button>
+          <button class="theme-btn settings-theme-btn" data-theme="light" title="Light">
+            <span class="theme-swatch" style="background:#f5f5f7;border-color:#c8c8d8"></span> Light
+          </button>
+          <button class="theme-btn settings-theme-btn" data-theme="sunset" title="Sunset">
+            <span class="theme-swatch" style="background:#2d1b2e;border-color:#4d3b4e"></span> Sunset
+          </button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Opacity</div>
+          <div class="settings-sublabel">Min 15%</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" id="opacity-slider" min="15" max="100" value="100" />
+          <span class="opacity-value" id="opacity-value">100%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-group-title">Behavior</div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Lock position</div>
+          <div class="settings-sublabel">Prevent accidental drags</div>
+        </div>
+        <div class="toggle" id="lock-toggle"><div class="toggle-knob"></div></div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Start on login</div>
+          <div class="settings-sublabel">Launch when Windows starts</div>
+        </div>
+        <div class="toggle" id="autostart-toggle"><div class="toggle-knob"></div></div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-group-title">Notifications</div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Mute sounds</div>
+          <div class="settings-sublabel">Disable all sound effects</div>
+        </div>
+        <div class="toggle" id="mute-toggle"><div class="toggle-knob"></div></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="tabs">
@@ -364,54 +471,6 @@ input[type="range"]::-webkit-slider-thumb {
       after inactivity. Move your mouse to the docked edge to reveal it.</p>
     </div>
 
-    <div class="section">
-      <h2>Theme</h2>
-      <div class="theme-picker">
-        <button class="theme-btn" data-theme="dark" title="Dark">
-          <span class="theme-swatch" style="background:#1e1e2e;border-color:#333346"></span> Dark
-        </button>
-        <button class="theme-btn" data-theme="light" title="Light">
-          <span class="theme-swatch" style="background:#f5f5f7;border-color:#c8c8d8"></span> Light
-        </button>
-        <button class="theme-btn" data-theme="sunset" title="Sunset">
-          <span class="theme-swatch" style="background:#2d1b2e;border-color:#4d3b4e"></span> Sunset
-        </button>
-      </div>
-    </div>
-
-    <div class="section">
-      <h2>Settings</h2>
-      <div class="settings-row">
-        <div>
-          <div class="settings-label">Opacity</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="range" id="opacity-slider" min="20" max="100" value="100" />
-          <span class="opacity-value" id="opacity-value">100%</span>
-        </div>
-      </div>
-      <div class="settings-row">
-        <div>
-          <div class="settings-label">Lock position</div>
-          <div class="settings-sublabel">Prevent accidental drags</div>
-        </div>
-        <div class="toggle" id="lock-toggle"><div class="toggle-knob"></div></div>
-      </div>
-      <div class="settings-row">
-        <div>
-          <div class="settings-label">Start on login</div>
-          <div class="settings-sublabel">Launch when Windows starts</div>
-        </div>
-        <div class="toggle" id="autostart-toggle"><div class="toggle-knob"></div></div>
-      </div>
-      <div class="settings-row">
-        <div>
-          <div class="settings-label">Mute sounds</div>
-          <div class="settings-sublabel">Disable all sound effects</div>
-        </div>
-        <div class="toggle" id="mute-toggle"><div class="toggle-knob"></div></div>
-      </div>
-    </div>
   </div>
 
   <!-- Shortcuts tab -->
@@ -529,6 +588,15 @@ input[type="range"]::-webkit-slider-thumb {
     });
   });
 
+  // Settings overlay
+  var settingsOverlay = document.getElementById('settings-overlay');
+  document.getElementById('settings-btn').addEventListener('click', function() {
+    settingsOverlay.classList.add('visible');
+  });
+  document.getElementById('settings-back').addEventListener('click', function() {
+    settingsOverlay.classList.remove('visible');
+  });
+
   // Format token count
   function fmtTokens(n) {
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
@@ -537,10 +605,10 @@ input[type="range"]::-webkit-slider-thumb {
   }
 
   // Theme switching — communicate via page title
-  document.querySelectorAll('.theme-btn').forEach(function(btn) {
+  document.querySelectorAll('.settings-theme-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var theme = btn.dataset.theme;
-      document.querySelectorAll('.theme-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelectorAll('.settings-theme-btn').forEach(function(b) { b.classList.remove('active'); });
       btn.classList.add('active');
       document.title = 'theme:' + theme;
     });
@@ -833,7 +901,7 @@ export function openHelpWindow(): void {
     };
     const achievements = getAchievements();
     helpWindow.webContents.executeJavaScript(`
-      document.querySelector('.theme-btn[data-theme="${config.theme || 'dark'}"]')?.classList.add('active');
+      document.querySelector('.settings-theme-btn[data-theme="${config.theme || 'dark'}"]')?.classList.add('active');
       window.postMessage(${JSON.stringify({ type: 'project-breakdown', projects })}, '*');
       window.postMessage(${JSON.stringify({ type: 'model-breakdown', models })}, '*');
       window.postMessage(${JSON.stringify({ type: 'daily-rollups', rollups })}, '*');
@@ -898,7 +966,7 @@ export function openHelpWindow(): void {
     } else if (title.startsWith('opacity:')) {
       const val = parseFloat(title.slice(8));
       if (!isNaN(val)) {
-        const clamped = Math.max(0.2, Math.min(1, val));
+        const clamped = Math.max(0.15, Math.min(1, val));
         saveConfig({ opacity: clamped });
         getWindow()?.setOpacity(clamped);
       }

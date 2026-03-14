@@ -19,7 +19,7 @@ export function loadConfig(): PulseConfig {
       snapEdge: VALID_EDGES.includes(data.snapEdge) ? data.snapEdge : 'top',
       userOffset: typeof data.userOffset === 'number' ? data.userOffset : null,
       theme: VALID_THEMES.includes(data.theme) ? data.theme : 'dark',
-      opacity: typeof data.opacity === 'number' ? Math.max(0.2, Math.min(1, data.opacity)) : 1,
+      opacity: typeof data.opacity === 'number' ? Math.max(0.15, Math.min(1, data.opacity)) : 1,
       positionLocked: !!data.positionLocked,
       autoStart: !!data.autoStart,
       soundMuted: !!data.soundMuted,
