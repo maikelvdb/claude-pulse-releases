@@ -1161,13 +1161,15 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
     mainWindow.webContents.send('claude:activity-history', getActivityHistory());
     mainWindow.webContents.send('claude:daily-rollups', getDailyRollups());
 
-    // Only push usage update when token totals or model actually changed
+    // Only push usage update when token totals, model, or limits actually changed
     const changed =
       !cachedState ||
       cachedState.tokens.inputToday !== newState.tokens.inputToday ||
       cachedState.tokens.outputToday !== newState.tokens.outputToday ||
       cachedState.tokens.cacheReadToday !== newState.tokens.cacheReadToday ||
-      cachedState.currentModel !== newState.currentModel;
+      cachedState.currentModel !== newState.currentModel ||
+      cachedState.limits.hourlyUsed !== newState.limits.hourlyUsed ||
+      cachedState.limits.weeklyUsed !== newState.limits.weeklyUsed;
 
     cachedState = newState;
 

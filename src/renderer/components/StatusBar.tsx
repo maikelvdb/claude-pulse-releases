@@ -9,6 +9,7 @@ import { ConversationPreview } from "./ConversationPreview";
 import SessionTimer from "./SessionTimer";
 import MiniHeatmap from "./MiniHeatmap";
 import Confetti from "./Confetti";
+import { PlanBadge } from "./PlanBadge";
 import {
   ClaudeUsageState,
   SnapEdge,
@@ -159,14 +160,17 @@ export function StatusBar({
                 ratio={state.limits.hourlyUsed}
                 orientation="vertical"
                 tooltip={`${Math.round(state.limits.hourlyUsed * 100)}% used${state.cliStatus?.sessionResetTime ? ` · Resets ${state.cliStatus.sessionResetTime}` : ''}`}
+                resetTime={state.cliStatus?.sessionResetTime}
               />
               <LimitBar
                 label="W"
                 ratio={state.limits.weeklyUsed}
                 orientation="vertical"
                 tooltip={`${Math.round(state.limits.weeklyUsed * 100)}% used${state.cliStatus?.weeklyResetTime ? ` · Resets ${state.cliStatus.weeklyResetTime}` : ''}`}
+                resetTime={state.cliStatus?.weeklyResetTime}
               />
             </div>
+            <PlanBadge subscriptionType={state.plan.subscriptionType} orientation="vertical" />
             {conversationPreview && state.session.isActive && (
               <>
                 <div className="h-px w-8 bg-claude-border" />
@@ -224,8 +228,10 @@ export function StatusBar({
             ratio={state.limits.hourlyUsed}
             orientation="horizontal"
             tooltip={`${Math.round(state.limits.hourlyUsed * 100)}% used${state.cliStatus?.sessionResetTime ? ` · Resets ${state.cliStatus.sessionResetTime}` : ''}`}
+            resetTime={state.cliStatus?.sessionResetTime}
           />
         </div>
+        <PlanBadge subscriptionType={state.plan.subscriptionType} />
       </div>
     );
   }
@@ -261,14 +267,18 @@ export function StatusBar({
             ratio={state.limits.hourlyUsed}
             orientation="horizontal"
             tooltip={`${Math.round(state.limits.hourlyUsed * 100)}% used${state.cliStatus?.sessionResetTime ? ` · Resets ${state.cliStatus.sessionResetTime}` : ''}`}
+            resetTime={state.cliStatus?.sessionResetTime}
           />
           <LimitBar
             label="Week"
             ratio={state.limits.weeklyUsed}
             orientation="horizontal"
             tooltip={`${Math.round(state.limits.weeklyUsed * 100)}% used${state.cliStatus?.weeklyResetTime ? ` · Resets ${state.cliStatus.weeklyResetTime}` : ''}`}
+            resetTime={state.cliStatus?.weeklyResetTime}
           />
         </div>
+        <div className="w-px h-8 bg-claude-border" />
+        <PlanBadge subscriptionType={state.plan.subscriptionType} />
         <div className="w-px h-8 bg-claude-border" />
         <HelpButton onClick={onHelp} hasUpdate={hasUpdate} />
       </div>
