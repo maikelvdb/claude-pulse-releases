@@ -148,7 +148,19 @@ function pollRcSessions(): void {
           activeFiles.add(filePath);
 
           const tracked = rcFileMap.get(filePath);
-          const byteOffset = tracked?.byteOffset ?? 0;
+
+          // First time seeing this file — skip historical data, only watch new writes
+          if (!tracked) {
+            rcFileMap.set(filePath, {
+              sessionId: '',
+              session: null,
+              mtimeMs: stat.mtimeMs,
+              byteOffset: stat.size,
+            });
+            continue;
+          }
+
+          const byteOffset = tracked.byteOffset;
 
           // No new data in this file
           if (stat.size <= byteOffset) continue;
@@ -162,52 +174,44 @@ function pollRcSessions(): void {
           const newContent = newBytes.toString('utf-8');
           const lines = newContent.split('\n');
 
-          // Scan for bridge_status entries (use the last one found per file)
-          let latestBridgeStatus: RcSession | null = null;
-          let latestSessionId: string | null = null;
+          // Scan for bridge_status (RC start) and disconnect signals
+          // Process lines in order so disconnect after start cancels it out
+          let currentSession: RcSession | null = tracked.session;
+          let currentSessionId = tracked.sessionId;
 
           for (const line of lines) {
             if (!line.trim()) continue;
             try {
               const entry = JSON.parse(line);
-              if (entry.type === 'system' && entry.subtype === 'bridge_status') {
-                latestSessionId = entry.sessionId;
-                latestBridgeStatus = {
+              // RC started
+              if (entry.type === 'system' && entry.subtype === 'bridge_status' && entry.url) {
+                currentSessionId = entry.sessionId;
+                currentSession = {
                   sessionId: entry.sessionId,
                   url: entry.url,
-                  slug: entry.slug,
-                  cwd: entry.cwd,
+                  slug: entry.slug ?? '',
+                  cwd: entry.cwd ?? '',
                   startedAt: new Date(entry.timestamp).getTime(),
                 };
+              }
+              // RC disconnected
+              if (entry.type === 'system' && entry.subtype === 'local_command'
+                  && typeof entry.content === 'string'
+                  && entry.content.includes('Remote Control disconnected')) {
+                currentSession = null;
+                currentSessionId = '';
               }
             } catch {
               continue;
             }
           }
 
-          if (latestBridgeStatus && latestSessionId) {
-            rcFileMap.set(filePath, {
-              sessionId: latestSessionId,
-              session: latestBridgeStatus,
-              mtimeMs: stat.mtimeMs,
-              byteOffset: stat.size,
-            });
-          } else if (tracked) {
-            // Update byte offset even if no new bridge_status found
-            rcFileMap.set(filePath, {
-              ...tracked,
-              mtimeMs: stat.mtimeMs,
-              byteOffset: stat.size,
-            });
-          } else {
-            // No bridge_status ever found in this file, just track the offset
-            rcFileMap.set(filePath, {
-              sessionId: '',
-              session: null,
-              mtimeMs: stat.mtimeMs,
-              byteOffset: stat.size,
-            });
-          }
+          rcFileMap.set(filePath, {
+            sessionId: currentSessionId,
+            session: currentSession,
+            mtimeMs: stat.mtimeMs,
+            byteOffset: stat.size,
+          });
         } catch {
           continue;
         }
