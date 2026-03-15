@@ -204,7 +204,7 @@ export function StatusBar({
   if (isCompact && !isVertical) {
     return (
       <div
-        className={`relative flex items-center gap-2 px-3 pr-5 bg-claude-bg border border-claude-border ${radius} shadow-lg h-[35px] transition-all duration-300`}
+        className={`relative flex items-center gap-1.5 px-2 pr-4 bg-claude-bg border border-claude-border ${radius} shadow-lg h-[35px] transition-all duration-300`}
       >
         <div className="flex-shrink-0 w-[28px] h-[28px] overflow-hidden relative">
           <video
@@ -228,7 +228,7 @@ export function StatusBar({
         <div className="w-px h-5 bg-claude-border" />
         <TokenCounter tokens={state.tokens} orientation="horizontal" />
         <div className="w-px h-5 bg-claude-border" />
-        <div className="flex-1 min-w-[60px]">
+        <div className="flex-1 min-w-[40px]">
           <LimitBar
             label="5h"
             ratio={state.limits.hourlyUsed}
