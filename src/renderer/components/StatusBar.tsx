@@ -10,6 +10,7 @@ import SessionTimer from "./SessionTimer";
 import MiniHeatmap from "./MiniHeatmap";
 import Confetti from "./Confetti";
 import { PlanBadge } from "./PlanBadge";
+import { RcBadge } from "./RcBadge";
 import {
   ClaudeUsageState,
   SnapEdge,
@@ -27,6 +28,8 @@ interface StatusBarProps {
   hasUpdate: boolean;
   conversationPreview: string;
   dailyRollups: DailyRollups;
+  rcCount: number;
+  onRcClick: () => void;
   confetti: 'small' | 'medium' | 'large' | 'party' | null;
   onConfettiDone: () => void;
   onToggleExpanded: () => void;
@@ -118,6 +121,8 @@ export function StatusBar({
   hasUpdate,
   conversationPreview,
   dailyRollups,
+  rcCount,
+  onRcClick,
   confetti,
   onConfettiDone,
   onToggleExpanded,
@@ -170,6 +175,7 @@ export function StatusBar({
                 resetTime={state.cliStatus?.weeklyResetTime}
               />
             </div>
+            {rcCount > 0 && <RcBadge count={rcCount} orientation="vertical" onClick={onRcClick} />}
             <PlanBadge subscriptionType={state.plan.subscriptionType} orientation="vertical" />
             {conversationPreview && state.session.isActive && (
               <>
@@ -231,6 +237,7 @@ export function StatusBar({
             resetTime={state.cliStatus?.sessionResetTime}
           />
         </div>
+        {rcCount > 0 && <RcBadge count={rcCount} onClick={onRcClick} />}
         <PlanBadge subscriptionType={state.plan.subscriptionType} />
       </div>
     );
@@ -238,7 +245,7 @@ export function StatusBar({
 
   return (
     <div
-      className={`relative flex flex-col bg-claude-bg border border-claude-border ${radius} shadow-lg ${isExpanded ? "h-[200px]" : "h-[68px]"} transition-all duration-300`}
+      className={`relative flex flex-col bg-claude-bg border border-claude-border ${radius} shadow-lg ${isExpanded ? "h-[220px]" : "h-[68px]"} transition-all duration-300`}
     >
       {confetti && <Confetti intensity={confetti} onDone={onConfettiDone} />}
       <div className="flex items-center gap-2 px-2 pt-0 pb-1 h-[68px] shrink-0">
@@ -278,6 +285,7 @@ export function StatusBar({
           />
         </div>
         <div className="w-px h-8 bg-claude-border" />
+        {rcCount > 0 && <RcBadge count={rcCount} onClick={onRcClick} />}
         <PlanBadge subscriptionType={state.plan.subscriptionType} />
         <div className="w-px h-8 bg-claude-border" />
         <HelpButton onClick={onHelp} hasUpdate={hasUpdate} />
@@ -294,7 +302,9 @@ export function StatusBar({
             orientation="horizontal"
             onClick={onToggleExpanded}
           />
-          <MiniHeatmap rollups={dailyRollups} orientation="horizontal" onClickHistory={onHelp} />
+          <div className="px-2 pb-1">
+            <MiniHeatmap rollups={dailyRollups} orientation="horizontal" onClickHistory={onHelp} />
+          </div>
         </div>
       )}
     </div>

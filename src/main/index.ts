@@ -1,7 +1,7 @@
 // src/main/index.ts
 import { app, globalShortcut } from 'electron';
 import { createWindow, showWidget, scheduleHide, setOnEdgeChange, setOnOffsetChange, startHoverDetection, stopHoverDetection, getWindow, resizeForPreview, setPositionLocked, setDefaultOpacity, setHoverOpacity } from './window-manager';
-import { setupIpcHandlers } from './ipc-handlers';
+import { setupIpcHandlers, pushRcToHelp } from './ipc-handlers';
 import { getActiveSession } from './services/session-watcher';
 import { loadConfig, saveConfig, getConfig } from './services/config-store';
 import { loadActivityHistory, flushActivityHistory } from './services/activity-store';
@@ -90,10 +90,16 @@ app.whenReady().then(() => {
     win.webContents.send('widget:update-info', info);
   });
 
-  startConversationTailer((msg) => {
-    resizeForPreview(!!msg);
-    win.webContents.send('claude:conversation-preview', msg);
-  });
+  startConversationTailer(
+    (msg) => {
+      resizeForPreview(!!msg);
+      win.webContents.send('claude:conversation-preview', msg);
+    },
+    (rcSessions) => {
+      win.webContents.send('claude:rc-sessions', rcSessions);
+      pushRcToHelp(rcSessions);
+    },
+  );
 
   startCliStatusPoller((status) => {
     win.webContents.send('claude:cli-status', status);

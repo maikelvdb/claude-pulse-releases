@@ -51,7 +51,7 @@ function QuitConfirm({ onConfirm, onCancel }: { onConfirm: () => void; onCancel:
 }
 
 export default function App() {
-  const { state, snapEdge, activityHistory, isExpanded, toggleExpanded, conversationPreview, dailyRollups } = useClaudeStats();
+  const { state, snapEdge, activityHistory, isExpanded, toggleExpanded, conversationPreview, dailyRollups, rcSessions } = useClaudeStats();
   const [visible, setVisible] = useState(true);
   const [minimized, setMinimized] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
@@ -286,6 +286,8 @@ export default function App() {
         hasUpdate={hasUpdate}
         conversationPreview={conversationPreview}
         dailyRollups={dailyRollups}
+        rcCount={rcSessions.length}
+        onRcClick={() => window.claudePulse.openHelp('rc')}
         confetti={confetti}
         onConfettiDone={() => setConfetti(null)}
         onToggleExpanded={toggleExpanded}

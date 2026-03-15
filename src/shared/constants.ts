@@ -32,5 +32,5 @@ export const WINDOW_HEIGHT_V = 380;
 export const WINDOW_HEIGHT_V_PREVIEW = 420;
 
 // Expanded dimensions (graph visible)
-export const WINDOW_HEIGHT_H_EXPANDED = 200;
+export const WINDOW_HEIGHT_H_EXPANDED = 220;
 export const WINDOW_WIDTH_V_EXPANDED = 260;

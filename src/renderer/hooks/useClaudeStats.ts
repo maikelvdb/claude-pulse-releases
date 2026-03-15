@@ -1,6 +1,6 @@
 // src/renderer/hooks/useClaudeStats.ts
 import { useState, useEffect, useCallback } from 'react';
-import { ClaudeUsageState, SnapEdge, ActivitySnapshot, UpdateInfo, ThemeName, DailyRollups } from '../../shared/types';
+import { ClaudeUsageState, SnapEdge, ActivitySnapshot, UpdateInfo, ThemeName, DailyRollups, RcSession } from '../../shared/types';
 
 declare global {
   interface Window {
@@ -15,7 +15,7 @@ declare global {
       onToggleMinimize: (callback: () => void) => () => void;
       requestResize: (expanded: boolean) => void;
       setCompact: (compact: boolean) => void;
-      openHelp: () => void;
+      openHelp: (tab?: string) => void;
       onUpdateInfo: (callback: (info: UpdateInfo) => void) => () => void;
       onConfirmQuit: (callback: () => void) => () => void;
       quit: () => void;
@@ -28,6 +28,7 @@ declare global {
       onConversationPreview: (callback: (msg: string) => void) => () => void;
       onSoundMuted: (callback: (muted: boolean) => void) => () => void;
       onDailyRollups: (callback: (rollups: import('../../shared/types').DailyRollups) => void) => () => void;
+      onRcSessions: (callback: (sessions: RcSession[]) => void) => () => void;
       onThemeChange: (callback: (theme: ThemeName) => void) => () => void;
       setTheme: (theme: ThemeName) => void;
       requestTheme: () => void;
@@ -56,6 +57,7 @@ export function useClaudeStats() {
   const [theme, setThemeState] = useState<ThemeName>('dark');
   const [conversationPreview, setConversationPreview] = useState('');
   const [dailyRollups, setDailyRollups] = useState<DailyRollups>({});
+  const [rcSessions, setRcSessions] = useState<RcSession[]>([]);
 
   useEffect(() => {
     const cleanups = [
@@ -64,6 +66,7 @@ export function useClaudeStats() {
       window.claudePulse.onSnapEdge((edge) => setSnapEdge(edge)),
       window.claudePulse.onConversationPreview((msg) => setConversationPreview(msg)),
       window.claudePulse.onDailyRollups?.((r: DailyRollups) => setDailyRollups(r)),
+      window.claudePulse.onRcSessions?.((s: RcSession[]) => setRcSessions(s)),
       window.claudePulse.onThemeChange((t) => {
         setThemeState(t);
         document.documentElement.setAttribute('data-theme', t);
@@ -87,5 +90,5 @@ export function useClaudeStats() {
     window.claudePulse.setTheme(t);
   }, []);
 
-  return { state, snapEdge, activityHistory, isExpanded, toggleExpanded, theme, setTheme, conversationPreview, dailyRollups };
+  return { state, snapEdge, activityHistory, isExpanded, toggleExpanded, theme, setTheme, conversationPreview, dailyRollups, rcSessions };
 }

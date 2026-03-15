@@ -11,11 +11,13 @@ import { getCachedCliStatus } from './services/cli-status-poller';
 import { log, getLogBuffer, clearLogBuffer, onLogEntry, LogEntry } from './services/logger';
 import { getProjectBreakdown } from './services/project-scanner';
 import { getModelBreakdown } from './services/model-breakdown';
-import { ClaudeUsageState, ThemeName, Achievement } from '../shared/types';
+import { ClaudeUsageState, ThemeName, Achievement, RcSession } from '../shared/types';
 import { getAchievements, unlock, MILESTONE_MAP } from './services/achievement-store';
 import { POLL_INTERVAL_SESSION, POLL_INTERVAL_STATS } from '../shared/constants';
 import { getSnapEdge, resizeForExpand, resizeForCompact, setPositionLocked, setDefaultOpacity, setHoverOpacity, getWindow } from './window-manager';
 import { saveConfig, getConfig } from './services/config-store';
+import QRCode from 'qrcode';
+import { getActiveRcSessions } from './services/conversation-tailer';
 
 let cachedState: ClaudeUsageState | null = null;
 let sessionStartedAt: number | null = null;
@@ -279,6 +281,43 @@ input[type="range"]::-webkit-slider-thumb {
   background: #E87443;
 }
 
+/* Remote Control tab */
+.rc-empty { color: #666; font-size: 12px; font-style: italic; text-align: center; padding: 40px 0; }
+.rc-card {
+  background: #2a2a3e; border: 1px solid #333346; border-radius: 8px;
+  padding: 14px 16px; margin-bottom: 12px;
+}
+.rc-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rc-slug {
+  font-size: 13px; font-weight: 600; color: #06b6d4;
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rc-time { font-size: 10px; color: #666; white-space: nowrap; }
+.rc-path { font-size: 11px; color: #888; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-url-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.rc-url {
+  flex: 1; font-size: 11px; color: #06b6d4; background: #0d0d1a;
+  padding: 4px 8px; border-radius: 4px; border: 1px solid #333346;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: monospace; cursor: pointer;
+}
+.rc-url:hover { border-color: #06b6d4; }
+.rc-copy-btn {
+  background: #06b6d420; border: 1px solid #06b6d450; color: #06b6d4;
+  font-size: 10px; padding: 3px 8px; border-radius: 4px; cursor: pointer;
+  white-space: nowrap;
+}
+.rc-copy-btn:hover { background: #06b6d440; }
+.rc-qr { display: flex; justify-content: center; padding: 8px 0; }
+.rc-icon { width: 16px; height: 16px; color: #06b6d4; flex-shrink: 0; }
+.rc-dot {
+  position: absolute; top: 6px; right: 4px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #06b6d4; animation: pulse-dot 2s infinite;
+  display: none;
+}
+.rc-dot.visible { display: block; }
+
 /* Console tab */
 #tab-console { overflow: hidden; display: none; }
 #tab-console.active { display: flex; }
@@ -452,6 +491,10 @@ input[type="range"]::-webkit-slider-thumb {
   </button>
   <button class="tab" data-tab="achievements">Achievements</button>
   <button class="tab" data-tab="console">Console</button>
+  <button class="tab" data-tab="rc">
+    RC
+    <span class="rc-dot" id="rc-dot"></span>
+  </button>
 </div>
 
 <div class="tab-panels">
@@ -585,6 +628,16 @@ input[type="range"]::-webkit-slider-thumb {
       </div>
       <div class="console-output" id="console-output">
         <div class="console-empty">Waiting for log entries...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remote Control tab -->
+  <div class="tab-panel" id="tab-rc">
+    <div class="section">
+      <h2>Remote Control Sessions</h2>
+      <div id="rc-list">
+        <p class="rc-empty">No active remote control sessions</p>
       </div>
     </div>
   </div>
@@ -865,6 +918,86 @@ input[type="range"]::-webkit-slider-thumb {
       targetEl.innerHTML = html;
     }
   });
+
+  // RC sessions handler
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'rc-sessions') {
+      var list = document.getElementById('rc-list');
+      var rcDot = document.getElementById('rc-dot');
+      var sessions = e.data.sessions || [];
+
+      if (sessions.length === 0) {
+        list.innerHTML = '<p class="rc-empty">No active remote control sessions</p>';
+        if (rcDot) rcDot.classList.remove('visible');
+        return;
+      }
+
+      if (rcDot) rcDot.classList.add('visible');
+      list.innerHTML = '';
+
+      sessions.forEach(function(rc) {
+        var card = document.createElement('div');
+        card.className = 'rc-card';
+
+        var ago = Math.round((Date.now() - rc.startedAt) / 60000);
+        var timeStr = ago < 1 ? 'just now' : ago + 'm ago';
+
+        var shortPath = (rc.cwd || '').replace(/\\\\/g, '/');
+        var parts = shortPath.split(/[\\/]/);
+        if (parts.length > 3) shortPath = '.../' + parts.slice(-2).join('/');
+
+        card.innerHTML =
+          '<div class="rc-card-header">' +
+            '<svg class="rc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
+              '<path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/>' +
+              '<path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.4"/>' +
+              '<path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.4"/>' +
+              '<path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/>' +
+              '<circle cx="12" cy="12" r="2"/>' +
+            '</svg>' +
+            '<span class="rc-slug">' + (rc.slug || 'Unknown session') + '</span>' +
+            '<span class="rc-time">' + timeStr + '</span>' +
+          '</div>' +
+          '<div class="rc-path" title="' + (rc.cwd || '') + '">' + shortPath + '</div>' +
+          '<div class="rc-url-row">' +
+            '<span class="rc-url" title="Click to copy">' + rc.url + '</span>' +
+            '<button class="rc-copy-btn">Copy</button>' +
+          '</div>' +
+          '<div class="rc-qr"></div>';
+
+        list.appendChild(card);
+
+        // QR code from data URL
+        if (rc.qrDataUrl) {
+          var qrContainer = card.querySelector('.rc-qr');
+          var img = document.createElement('img');
+          img.src = rc.qrDataUrl;
+          img.width = 140;
+          img.height = 140;
+          img.style.borderRadius = '6px';
+          qrContainer.appendChild(img);
+        }
+
+        // Copy button
+        card.querySelector('.rc-copy-btn').addEventListener('click', function() {
+          navigator.clipboard.writeText(rc.url).then(function() {
+            var btn = card.querySelector('.rc-copy-btn');
+            btn.textContent = 'Copied!';
+            setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+          });
+        });
+
+        // Click URL to copy
+        card.querySelector('.rc-url').addEventListener('click', function() {
+          navigator.clipboard.writeText(rc.url).then(function() {
+            var btn = card.querySelector('.rc-copy-btn');
+            btn.textContent = 'Copied!';
+            setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+          });
+        });
+      });
+    }
+  });
 </script>
 </body>
 </html>`;
@@ -881,9 +1014,42 @@ function sendUpdateToHelp(update: import('./services/update-checker').UpdateInfo
   );
 }
 
-export function openHelpWindow(): void {
+async function sendRcToHelp(sessions: RcSession[]): Promise<void> {
+  if (!helpWindow || helpWindow.isDestroyed()) return;
+  try {
+    const sessionsWithQr = await Promise.all(sessions.map(async (rc) => ({
+      ...rc,
+      qrDataUrl: await QRCode.toDataURL(rc.url, {
+        width: 140,
+        margin: 2,
+        color: { dark: '#06b6d4', light: '#1a1a2e' },
+      }),
+    })));
+    helpWindow.webContents.executeJavaScript(
+      `window.postMessage(${JSON.stringify({ type: 'rc-sessions', sessions: sessionsWithQr })}, '*')`
+    );
+  } catch {
+    // QR generation failed silently
+  }
+}
+
+export function pushRcToHelp(sessions: RcSession[]): void {
+  sendRcToHelp(sessions);
+}
+
+export function openHelpWindow(tab?: string): void {
   if (helpWindow && !helpWindow.isDestroyed()) {
     helpWindow.focus();
+    if (tab) {
+      helpWindow.webContents.executeJavaScript(`
+        document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        var targetTab = document.querySelector('.tab[data-tab="${tab}"]');
+        if (targetTab) targetTab.classList.add('active');
+        var targetPanel = document.getElementById('tab-${tab}');
+        if (targetPanel) targetPanel.classList.add('active');
+      `);
+    }
     return;
   }
 
@@ -944,6 +1110,24 @@ export function openHelpWindow(): void {
       helpWindow.webContents.executeJavaScript(
         `window.postMessage(${JSON.stringify({ type: 'log-buffer', entries: logBuffer })}, '*')`
       );
+    }
+
+    // Send initial RC sessions
+    const rcSessions = getActiveRcSessions();
+    if (rcSessions.length > 0) {
+      sendRcToHelp(rcSessions);
+    }
+
+    // Switch to requested tab
+    if (tab) {
+      helpWindow.webContents.executeJavaScript(`
+        document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        var targetTab = document.querySelector('.tab[data-tab="${tab}"]');
+        if (targetTab) targetTab.classList.add('active');
+        var targetPanel = document.getElementById('tab-${tab}');
+        if (targetPanel) targetPanel.classList.add('active');
+      `);
     }
   });
 
@@ -1085,8 +1269,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow): void {
     resizeForCompact(compact);
   });
 
-  ipcMain.on('widget:open-help', () => {
-    openHelpWindow();
+  ipcMain.on('widget:open-help', (_event, tab?: string) => {
+    openHelpWindow(tab);
   });
 
   ipcMain.handle('achievements:list', () => getAchievements());

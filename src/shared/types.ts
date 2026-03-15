@@ -102,3 +102,11 @@ export interface UpdateInfo {
   releaseNotes: string;
   releaseUrl: string;
 }
+
+export interface RcSession {
+  sessionId: string;
+  url: string;
+  slug: string;
+  cwd: string;
+  startedAt: number;
+}

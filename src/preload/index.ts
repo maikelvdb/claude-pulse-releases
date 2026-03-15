@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { ClaudeUsageState, CliStatus, SnapEdge, ActivitySnapshot, UpdateInfo, ThemeName, DailyRollups, Achievement } from '../shared/types';
+import { ClaudeUsageState, CliStatus, SnapEdge, ActivitySnapshot, UpdateInfo, ThemeName, DailyRollups, Achievement, RcSession } from '../shared/types';
 
 function makeListener<T>(channel: string) {
   return (callback: (value: T) => void) => {
@@ -32,8 +32,8 @@ contextBridge.exposeInMainWorld('claudePulse', {
   setCompact: (compact: boolean) => {
     ipcRenderer.send('widget:compact', compact);
   },
-  openHelp: () => {
-    ipcRenderer.send('widget:open-help');
+  openHelp: (tab?: string) => {
+    ipcRenderer.send('widget:open-help', tab);
   },
   onUpdateInfo: makeListener<UpdateInfo>('widget:update-info'),
   onConfirmQuit: (callback: () => void) => {
@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('claudePulse', {
   onCliStatus: makeListener<CliStatus | null>('claude:cli-status'),
   onSoundMuted: makeListener<boolean>('widget:sound-muted'),
   onThemeChange: makeListener<ThemeName>('widget:theme-change'),
+  onRcSessions: makeListener<RcSession[]>('claude:rc-sessions'),
   setTheme: (theme: ThemeName) => {
     ipcRenderer.send('widget:set-theme', theme);
   },
