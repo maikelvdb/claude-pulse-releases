@@ -223,8 +223,6 @@ export function resizeForExpand(expanded: boolean): void {
 export function resizeForCompact(compact: boolean): void {
   if (!mainWindow || isCompact === compact) return;
   isCompact = compact;
-  // Make compact view click-through so it doesn't block underlying windows
-  mainWindow.setIgnoreMouseEvents(compact);
   if (!isExpanded) {
     const pos = getPosition(currentEdge);
     applyBounds(pos);
