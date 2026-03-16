@@ -62,6 +62,7 @@ export default function App() {
   const reachedTiers = useRef<Set<number>>(new Set());
   const prevHourlyUsed = useRef(0);
   const compactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isExpandedRef = useRef(isExpanded);
   isExpandedRef.current = isExpanded;
 
@@ -103,13 +104,25 @@ export default function App() {
           clearTimeout(compactTimerRef.current);
           compactTimerRef.current = null;
         }
-        goFull();
-      } else if (!isExpandedRef.current) {
-        if (compactTimerRef.current) clearTimeout(compactTimerRef.current);
-        compactTimerRef.current = setTimeout(() => {
-          goCompact();
-          compactTimerRef.current = null;
+        // Delay expand by 3 seconds — only enlarge if still hovered
+        if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+        expandTimerRef.current = setTimeout(() => {
+          goFull();
+          expandTimerRef.current = null;
         }, 3000);
+      } else {
+        // Left the widget — cancel pending expand
+        if (expandTimerRef.current) {
+          clearTimeout(expandTimerRef.current);
+          expandTimerRef.current = null;
+        }
+        if (!isExpandedRef.current) {
+          if (compactTimerRef.current) clearTimeout(compactTimerRef.current);
+          compactTimerRef.current = setTimeout(() => {
+            goCompact();
+            compactTimerRef.current = null;
+          }, 3000);
+        }
       }
     });
 
@@ -124,6 +137,10 @@ export default function App() {
       if (compactTimerRef.current) {
         clearTimeout(compactTimerRef.current);
         compactTimerRef.current = null;
+      }
+      if (expandTimerRef.current) {
+        clearTimeout(expandTimerRef.current);
+        expandTimerRef.current = null;
       }
     };
   }, [snapEdge]);
