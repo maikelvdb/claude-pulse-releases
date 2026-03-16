@@ -24,6 +24,7 @@ export function loadConfig(): PulseConfig {
       positionLocked: !!data.positionLocked,
       autoStart: !!data.autoStart,
       soundMuted: !!data.soundMuted,
+      shortUrlApiKey: typeof data.shortUrlApiKey === 'string' ? data.shortUrlApiKey : undefined,
     };
     return currentConfig;
   } catch {

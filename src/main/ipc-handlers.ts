@@ -963,6 +963,7 @@ input[type="range"]::-webkit-slider-thumb {
             '<span class="rc-url" title="Click to copy">' + rc.url + '</span>' +
             '<button class="rc-copy-btn">Copy</button>' +
           '</div>' +
+          (rc.shortUrl ? '<div style="font-size:10px;color:#06b6d4;margin-bottom:8px;font-family:monospace">QR: ' + rc.shortUrl + '</div>' : '') +
           '<div class="rc-qr"></div>';
 
         list.appendChild(card);
@@ -1014,17 +1015,51 @@ function sendUpdateToHelp(update: import('./services/update-checker').UpdateInfo
   );
 }
 
+// Cache short URLs to avoid repeated API calls for the same session
+const shortUrlCache = new Map<string, string>();
+
+async function shortenUrl(url: string): Promise<string> {
+  if (shortUrlCache.has(url)) return shortUrlCache.get(url)!;
+  const config = getConfig();
+  const apiKey = config.shortUrlApiKey;
+  if (!apiKey) return url;
+
+  try {
+    const res = await fetch('https://direct-url.dev/api/urls', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': apiKey,
+      },
+      body: JSON.stringify({ url, ttlInDays: 1 }),
+    });
+    if (!res.ok) return url;
+    const data = await res.json();
+    if (data.shortUrl) {
+      shortUrlCache.set(url, data.shortUrl);
+      return data.shortUrl;
+    }
+  } catch {
+    // API unavailable — fall back to original URL
+  }
+  return url;
+}
+
 async function sendRcToHelp(sessions: RcSession[]): Promise<void> {
   if (!helpWindow || helpWindow.isDestroyed()) return;
   try {
-    const sessionsWithQr = await Promise.all(sessions.map(async (rc) => ({
-      ...rc,
-      qrDataUrl: await QRCode.toDataURL(rc.url, {
-        width: 140,
-        margin: 2,
-        color: { dark: '#06b6d4', light: '#1a1a2e' },
-      }),
-    })));
+    const sessionsWithQr = await Promise.all(sessions.map(async (rc) => {
+      const qrUrl = await shortenUrl(rc.url);
+      return {
+        ...rc,
+        shortUrl: qrUrl !== rc.url ? qrUrl : undefined,
+        qrDataUrl: await QRCode.toDataURL(qrUrl, {
+          width: 140,
+          margin: 2,
+          color: { dark: '#06b6d4', light: '#1a1a2e' },
+        }),
+      };
+    }));
     helpWindow.webContents.executeJavaScript(
       `window.postMessage(${JSON.stringify({ type: 'rc-sessions', sessions: sessionsWithQr })}, '*')`
     );

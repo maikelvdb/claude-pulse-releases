@@ -68,6 +68,7 @@ export interface PulseConfig {
   positionLocked?: boolean;
   autoStart?: boolean;
   soundMuted?: boolean;
+  shortUrlApiKey?: string;
 }
 
 export interface ActivitySnapshot {
