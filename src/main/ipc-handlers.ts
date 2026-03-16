@@ -1029,37 +1029,44 @@ async function shortenUrl(url: string): Promise<string> {
     return url;
   }
 
+  log('rc', 'info', `Shortening URL: ${url}`);
   try {
-    const { net } = require('electron');
+    const https = require('https');
     const body = JSON.stringify({ url, ttlInDays: 1 });
     const data: any = await new Promise((resolve, reject) => {
-      const req = net.request({
+      const req = https.request({
+        hostname: 'direct-url.dev',
+        path: '/api/urls',
         method: 'POST',
-        url: 'https://direct-url.dev/api/urls',
-      });
-      req.setHeader('Content-Type', 'application/json');
-      req.setHeader('X-Api-Key', apiKey);
-      let responseBody = '';
-      req.on('response', (response: any) => {
-        if (response.statusCode !== 200 && response.statusCode !== 201) {
-          log('rc', 'warn', `Short URL API returned ${response.statusCode}`);
-          reject(new Error(`HTTP ${response.statusCode}`));
-          return;
-        }
-        response.on('data', (chunk: Buffer) => { responseBody += chunk.toString(); });
-        response.on('end', () => {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': apiKey,
+          'Content-Length': Buffer.byteLength(body),
+        },
+      }, (res: any) => {
+        let responseBody = '';
+        res.on('data', (chunk: string) => { responseBody += chunk; });
+        res.on('end', () => {
+          log('rc', 'info', `Short URL API response: ${res.statusCode} ${responseBody.slice(0, 200)}`);
+          if (res.statusCode !== 200 && res.statusCode !== 201) {
+            reject(new Error(`HTTP ${res.statusCode}: ${responseBody}`));
+            return;
+          }
           try { resolve(JSON.parse(responseBody)); }
           catch (e) { reject(e); }
         });
       });
-      req.on('error', reject);
+      req.on('error', (e: Error) => {
+        log('rc', 'warn', `Short URL request error: ${e.message}`);
+        reject(e);
+      });
       req.write(body);
       req.end();
     });
     if (data.shortUrl) {
       const expiresAt = data.expiresAt ? new Date(data.expiresAt).getTime() : Date.now() + 24 * 60 * 60 * 1000;
       shortUrlCache.set(url, { shortUrl: data.shortUrl, expiresAt });
-      log('rc', 'info', `Shortened RC URL: ${data.shortUrl}`);
+      log('rc', 'info', `Shortened RC URL: ${data.shortUrl} (expires ${new Date(expiresAt).toISOString()})`);
       return data.shortUrl;
     }
   } catch (err: any) {
