@@ -1015,11 +1015,13 @@ function sendUpdateToHelp(update: import('./services/update-checker').UpdateInfo
   );
 }
 
-// Cache short URLs to avoid repeated API calls for the same session
-const shortUrlCache = new Map<string, string>();
+// Cache short URLs with expiry to avoid repeated API calls
+const shortUrlCache = new Map<string, { shortUrl: string; expiresAt: number }>();
 
 async function shortenUrl(url: string): Promise<string> {
-  if (shortUrlCache.has(url)) return shortUrlCache.get(url)!;
+  const cached = shortUrlCache.get(url);
+  if (cached && cached.expiresAt > Date.now()) return cached.shortUrl;
+
   const config = getConfig();
   const apiKey = config.shortUrlApiKey;
   if (!apiKey) return url;
@@ -1036,7 +1038,8 @@ async function shortenUrl(url: string): Promise<string> {
     if (!res.ok) return url;
     const data = await res.json();
     if (data.shortUrl) {
-      shortUrlCache.set(url, data.shortUrl);
+      const expiresAt = data.expiresAt ? new Date(data.expiresAt).getTime() : Date.now() + 24 * 60 * 60 * 1000;
+      shortUrlCache.set(url, { shortUrl: data.shortUrl, expiresAt });
       return data.shortUrl;
     }
   } catch {
