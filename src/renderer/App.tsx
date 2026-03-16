@@ -104,12 +104,12 @@ export default function App() {
           clearTimeout(compactTimerRef.current);
           compactTimerRef.current = null;
         }
-        // Delay expand by 3 seconds — only enlarge if still hovered
+        // Delay expand by 2 seconds — only enlarge if still hovered
         if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
         expandTimerRef.current = setTimeout(() => {
           goFull();
           expandTimerRef.current = null;
-        }, 3000);
+        }, 2000);
       } else {
         // Left the widget — cancel pending expand
         if (expandTimerRef.current) {
