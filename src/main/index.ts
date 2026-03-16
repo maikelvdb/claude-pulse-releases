@@ -16,7 +16,21 @@ import path from 'path';
 
 const isDev = !app.isPackaged;
 
+// Ensure only one instance is running
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+}
+
 let sessionIntervalId: ReturnType<typeof setInterval> | null = null;
+
+app.on('second-instance', () => {
+  // If a second instance is launched, focus the existing window
+  const win = getWindow();
+  if (win) {
+    showWidget();
+  }
+});
 
 app.whenReady().then(() => {
   log('app', 'info', 'Claude Pulse starting (v' + app.getVersion() + ', ' + (isDev ? 'dev' : 'prod') + ')');
