@@ -1024,26 +1024,46 @@ async function shortenUrl(url: string): Promise<string> {
 
   const config = getConfig();
   const apiKey = config.shortUrlApiKey;
-  if (!apiKey) return url;
+  if (!apiKey) {
+    log('rc', 'warn', 'No shortUrlApiKey configured — using original URL for QR');
+    return url;
+  }
 
   try {
-    const res = await fetch('https://direct-url.dev/api/urls', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Api-Key': apiKey,
-      },
-      body: JSON.stringify({ url, ttlInDays: 1 }),
+    const { net } = require('electron');
+    const body = JSON.stringify({ url, ttlInDays: 1 });
+    const data: any = await new Promise((resolve, reject) => {
+      const req = net.request({
+        method: 'POST',
+        url: 'https://direct-url.dev/api/urls',
+      });
+      req.setHeader('Content-Type', 'application/json');
+      req.setHeader('X-Api-Key', apiKey);
+      let responseBody = '';
+      req.on('response', (response: any) => {
+        if (response.statusCode !== 200 && response.statusCode !== 201) {
+          log('rc', 'warn', `Short URL API returned ${response.statusCode}`);
+          reject(new Error(`HTTP ${response.statusCode}`));
+          return;
+        }
+        response.on('data', (chunk: Buffer) => { responseBody += chunk.toString(); });
+        response.on('end', () => {
+          try { resolve(JSON.parse(responseBody)); }
+          catch (e) { reject(e); }
+        });
+      });
+      req.on('error', reject);
+      req.write(body);
+      req.end();
     });
-    if (!res.ok) return url;
-    const data = await res.json();
     if (data.shortUrl) {
       const expiresAt = data.expiresAt ? new Date(data.expiresAt).getTime() : Date.now() + 24 * 60 * 60 * 1000;
       shortUrlCache.set(url, { shortUrl: data.shortUrl, expiresAt });
+      log('rc', 'info', `Shortened RC URL: ${data.shortUrl}`);
       return data.shortUrl;
     }
-  } catch {
-    // API unavailable — fall back to original URL
+  } catch (err: any) {
+    log('rc', 'warn', `Failed to shorten URL: ${err?.message || err}`);
   }
   return url;
 }
